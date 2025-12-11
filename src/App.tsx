@@ -56,7 +56,7 @@ const CONFIG = {
   },
   counts: {
     foliage: 15000,
-    photos: 20,       // 照片数量 (从300减少到20)
+    photos: bodyPhotoPaths.length,       // 动态使用照片真实数量
     baubles: 250,     // 装饰球数量 (稍微增加以填补空缺)
     elements: 150,    // 圣诞元素数量
     lights: 500       // 彩灯数量
@@ -542,7 +542,7 @@ const Experience = ({ sceneState, rotationSpeed, customText }: { sceneState: 'CH
       <group position={[0, -6, 0]}>
         <Foliage state={sceneState} />
         <Suspense fallback={null}>
-          <PhotoOrnaments state={sceneState} />
+          {bodyPhotoPaths.length > 0 && <PhotoOrnaments state={sceneState} />}
           <BaubleOrnaments state={sceneState} />
           <ChristmasElements state={sceneState} />
           <FairyLights state={sceneState} />
@@ -768,7 +768,7 @@ export default function GrandTreeApp() {
   const handlePinch = useCallback((isPinching: boolean) => {
     if (isPinching) {
       // Only show photo in CHAOS state
-      if (sceneState === 'CHAOS') {
+      if (sceneState === 'CHAOS' && CONFIG.counts.photos > 0) {
         const randomIndex = Math.floor(Math.random() * CONFIG.counts.photos);
         setFocusedPhoto({ index: randomIndex, position: new THREE.Vector3(0, 0, 0) });
       }
