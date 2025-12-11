@@ -703,7 +703,7 @@ const GestureController = React.memo(({ onGesture, onMove, onStatus, onPinch, de
                 Math.pow(thumbTip.z - indexTip.z, 2)
               );
 
-              if (distance < 0.05) {
+              if (distance < 0.05 && name !== "Closed_Fist") {
                 if (!isPinchingRef.current) {
                   isPinchingRef.current = true;
                   if (onPinch) onPinch(true); // Pinch start
