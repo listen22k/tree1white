@@ -21,8 +21,9 @@ import { GestureRecognizer, FilesetResolver, DrawingUtils } from "@mediapipe/tas
 
 // --- 动态获取照片列表 (自动读取 src/assets/photos 下的所有 .jpg 文件) ---
 // 使用 Vite 的 import.meta.glob 动态导入
-const photoModules = import.meta.glob('/src/assets/photos/*.jpg', { eager: true, as: 'url' });
-const bodyPhotoPaths = Object.values(photoModules);
+// 使用 Vite 的 import.meta.glob 动态导入
+const photoModules = import.meta.glob('/src/assets/photos/*.jpg', { eager: true, query: '?url', import: 'default' });
+const bodyPhotoPaths: string[] = Object.values(photoModules) as string[];
 
 // 如果没有照片，使用占位符
 if (bodyPhotoPaths.length === 0) {
@@ -803,6 +804,7 @@ export default function GrandTreeApp() {
         method: 'POST',
         headers: {
           'content-type': file.type || 'application/octet-stream',
+          'x-filename': file.name,
         },
         body: file,
       });
@@ -813,12 +815,8 @@ export default function GrandTreeApp() {
 
       setPhotos(prev => {
         // Check if we are currently using the default local set
-        // A simple heuristic is: if prev is exactly bodyPhotoPaths, we wipe it.
-        // However, reference equality check might fail if state updated elsewhere.
-        // Better: We check if the FIRST item in current state is a local path (starts with /src or doesn't start with http/blob domain?)
-        // Actually, Vercel Blob URLs start with https://. Local paths are /src/...
-        // Let's rely on a state flag? Or just heuristic.
-        const isUsingLocal = prev.length > 0 && prev[0].startsWith('/src');
+        // Heuristic: Local photos (from Vite) do not start with http/https
+        const isUsingLocal = prev.length > 0 && !prev[0].startsWith('http');
 
         if (isUsingLocal) {
           return [newBlob.url];
@@ -856,7 +854,14 @@ export default function GrandTreeApp() {
         body: JSON.stringify({ url })
       });
       if (res.ok) {
-        setPhotos(prev => prev.filter(p => p !== url));
+        setPhotos(prev => {
+          const updated = prev.filter(p => p !== url);
+          // If no uploaded photos remain, revert to local default
+          if (updated.length === 0) {
+            return bodyPhotoPaths;
+          }
+          return updated;
+        });
       } else {
         throw new Error('Delete failed');
       }
