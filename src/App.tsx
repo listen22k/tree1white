@@ -18,6 +18,7 @@ import { MathUtils } from 'three';
 import * as random from 'maath/random';
 import { GestureRecognizer, FilesetResolver, DrawingUtils } from "@mediapipe/tasks-vision";
 
+
 // --- 动态获取照片列表 (自动读取 src/assets/photos 下的所有 .jpg 文件) ---
 // 使用 Vite 的 import.meta.glob 动态导入
 const photoModules = import.meta.glob('/src/assets/photos/*.jpg', { eager: true, as: 'url' });
@@ -219,10 +220,10 @@ const BaubleOrnaments = ({ state }: { state: 'CHAOS' | 'FORMED' }) => {
 };
 
 // --- Component: Photo Ornaments (Polaroid Photos) ---
-const PhotoOrnaments = ({ state }: { state: 'CHAOS' | 'FORMED' }) => {
+const PhotoOrnaments = ({ state, photos }: { state: 'CHAOS' | 'FORMED', photos: string[] }) => {
   // Load textures directly from the dynamic paths array
-  const textures = useTexture(bodyPhotoPaths);
-  const count = CONFIG.counts.photos;
+  const textures = useTexture(photos);
+  const count = photos.length;
   const groupRef = useRef<THREE.Group>(null);
 
   const borderGeometry = useMemo(() => new THREE.PlaneGeometry(1.2, 1.5), []);
@@ -516,7 +517,7 @@ const TopStar = ({ state }: { state: 'CHAOS' | 'FORMED' }) => {
 };
 
 // --- Main Scene Experience ---
-const Experience = ({ sceneState, rotationSpeed, customText }: { sceneState: 'CHAOS' | 'FORMED', rotationSpeed: number, customText: string }) => {
+const Experience = ({ sceneState, rotationSpeed, customText, photos }: { sceneState: 'CHAOS' | 'FORMED', rotationSpeed: number, customText: string, photos: string[] }) => {
   const controlsRef = useRef<any>(null);
   useFrame(() => {
     if (controlsRef.current) {
@@ -542,7 +543,7 @@ const Experience = ({ sceneState, rotationSpeed, customText }: { sceneState: 'CH
       <group position={[0, -6, 0]}>
         <Foliage state={sceneState} />
         <Suspense fallback={null}>
-          {bodyPhotoPaths.length > 0 && <PhotoOrnaments state={sceneState} />}
+          {photos.length > 0 && <PhotoOrnaments state={sceneState} photos={photos} />}
           <BaubleOrnaments state={sceneState} />
           <ChristmasElements state={sceneState} />
           <FairyLights state={sceneState} />
@@ -764,19 +765,120 @@ export default function GrandTreeApp() {
   const [customText, setCustomText] = useState('STUDIO CITY');
   const [focusedPhoto, setFocusedPhoto] = useState<{ index: number, position: THREE.Vector3 } | null>(null);
 
+  const [photos, setPhotos] = useState<string[]>(bodyPhotoPaths);
+  const [isUploading, setIsUploading] = useState(false);
+  const [isGalleryOpen, setIsGalleryOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Login State
+
+
+  // Fetch uploaded photos on load
+  useEffect(() => {
+    const fetchPhotos = async () => {
+      try {
+        const response = await fetch('/api/photos');
+        if (response.ok) {
+          const uploadedPhotos = await response.json();
+          if (uploadedPhotos && uploadedPhotos.length > 0) {
+            console.log("Found uploaded photos, replacing local default.");
+            setPhotos(uploadedPhotos);
+          }
+        }
+      } catch (e) {
+        console.log("Could not fetch uploaded photos (likely waiting for Vercel deployment). Using local default.");
+      }
+    };
+    fetchPhotos();
+  }, []);
+
+  const handleUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!event.target.files || event.target.files.length === 0) return;
+
+    setIsUploading(true);
+    const file = event.target.files[0];
+
+    try {
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        headers: {
+          'content-type': file.type || 'application/octet-stream',
+        },
+        body: file,
+      });
+
+      if (!response.ok) throw new Error('Upload failed');
+
+      const newBlob = await response.json();
+
+      setPhotos(prev => {
+        // Check if we are currently using the default local set
+        // A simple heuristic is: if prev is exactly bodyPhotoPaths, we wipe it.
+        // However, reference equality check might fail if state updated elsewhere.
+        // Better: We check if the FIRST item in current state is a local path (starts with /src or doesn't start with http/blob domain?)
+        // Actually, Vercel Blob URLs start with https://. Local paths are /src/...
+        // Let's rely on a state flag? Or just heuristic.
+        const isUsingLocal = prev.length > 0 && prev[0].startsWith('/src');
+
+        if (isUsingLocal) {
+          return [newBlob.url];
+        }
+        return [...prev, newBlob.url];
+      });
+
+      // Force switch to CHAOS to show new photo potentially, or just notify
+      setAiStatus("UPLOAD SUCCESS");
+      setTimeout(() => setAiStatus("AI READY: SHOW HAND"), 3000);
+    } catch (error) {
+      console.error('Upload Error:', error);
+      setAiStatus("UPLOAD FAILED");
+    } finally {
+      setIsUploading(false);
+      // Reset input
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleDelete = async (url: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm("Are you sure you want to delete this photo?")) return;
+
+    // Check if it's a local photo
+    if (url.startsWith('/src') || !url.startsWith('http')) {
+      alert("Cannot delete built-in photos.");
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/photos', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url })
+      });
+      if (res.ok) {
+        setPhotos(prev => prev.filter(p => p !== url));
+      } else {
+        throw new Error('Delete failed');
+      }
+    } catch (error) {
+      console.error('Delete error', error);
+      alert("Failed to delete photo.");
+    }
+  };
+
   // Handle pinch gesture - Hold to view random photo (CHAOS only)
   const handlePinch = useCallback((isPinching: boolean) => {
     if (isPinching) {
       // Only show photo in CHAOS state
-      if (sceneState === 'CHAOS' && CONFIG.counts.photos > 0) {
-        const randomIndex = Math.floor(Math.random() * CONFIG.counts.photos);
+      if (sceneState === 'CHAOS' && photos.length > 0) {
+        const randomIndex = Math.floor(Math.random() * photos.length);
         setFocusedPhoto({ index: randomIndex, position: new THREE.Vector3(0, 0, 0) });
       }
     } else {
       // Always allow hiding photo, regardless of state
       setFocusedPhoto(null);
     }
-  }, [sceneState]);
+  }, [sceneState, photos]);
 
   // ESC key to close focused photo
   useEffect(() => {
@@ -796,11 +898,13 @@ export default function GrandTreeApp() {
     }
   }, [sceneState]);
 
+
+
   return (
     <div style={{ width: '100vw', height: '100vh', backgroundColor: '#000', position: 'relative', overflow: 'hidden' }}>
       <div style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0, zIndex: 1 }}>
         <Canvas dpr={[1, 2]} gl={{ toneMapping: THREE.ReinhardToneMapping }} shadows>
-          <Experience sceneState={sceneState} rotationSpeed={rotationSpeed} customText={customText} />
+          <Experience sceneState={sceneState} rotationSpeed={rotationSpeed} customText={customText} photos={photos} />
         </Canvas>
       </div>
       <GestureController onGesture={setSceneState} onMove={setRotationSpeed} onStatus={setAiStatus} onPinch={handlePinch} debugMode={debugMode} />
@@ -810,7 +914,7 @@ export default function GrandTreeApp() {
         <div style={{ marginBottom: '15px' }}>
           <p style={{ fontSize: '10px', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '4px' }}>Photos</p>
           <p style={{ fontSize: '24px', color: '#B8E6D5', fontWeight: 'bold', margin: 0 }}>
-            {CONFIG.counts.photos.toLocaleString()} <span style={{ fontSize: '10px', color: '#555', fontWeight: 'normal' }}>POLAROIDS</span>
+            {photos.length.toLocaleString()} <span style={{ fontSize: '10px', color: '#555', fontWeight: 'normal' }}>POLAROIDS</span>
           </p>
         </div>
         <div>
@@ -826,8 +930,21 @@ export default function GrandTreeApp() {
         <button onClick={() => setDebugMode(!debugMode)} style={{ padding: '12px 15px', backgroundColor: debugMode ? '#FFD700' : 'rgba(0,0,0,0.5)', border: '1px solid #FFD700', color: debugMode ? '#000' : '#FFD700', fontFamily: 'sans-serif', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', backdropFilter: 'blur(4px)' }}>
           {debugMode ? 'HIDE DEBUG' : '🛠 DEBUG'}
         </button>
+        <input
+          type="file"
+          ref={fileInputRef}
+          style={{ display: 'none' }}
+          onChange={handleUpload}
+          accept="image/*"
+        />
+        <button onClick={() => fileInputRef.current?.click()} style={{ padding: '12px 15px', backgroundColor: 'rgba(0,0,0,0.5)', border: '1px solid #B8E6D5', color: '#B8E6D5', fontFamily: 'sans-serif', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', backdropFilter: 'blur(4px)' }}>
+          {isUploading ? 'UPLOADING...' : '📷 UPLOAD'}
+        </button>
         <button onClick={() => setSceneState(s => s === 'CHAOS' ? 'FORMED' : 'CHAOS')} style={{ padding: '12px 30px', backgroundColor: 'rgba(0,0,0,0.5)', border: '1px solid rgba(255, 215, 0, 0.5)', color: '#FFD700', fontFamily: 'serif', fontSize: '14px', fontWeight: 'bold', letterSpacing: '3px', textTransform: 'uppercase', cursor: 'pointer', backdropFilter: 'blur(4px)' }}>
           {sceneState === 'CHAOS' ? 'Assemble Tree' : 'Disperse'}
+        </button>
+        <button onClick={() => setIsGalleryOpen(true)} style={{ padding: '12px 15px', backgroundColor: 'rgba(0,0,0,0.5)', border: '1px solid #B8E6D5', color: '#B8E6D5', fontFamily: 'sans-serif', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', backdropFilter: 'blur(4px)' }}>
+          🖼 GALLERY
         </button>
       </div>
 
@@ -886,7 +1003,7 @@ export default function GrandTreeApp() {
             filter: 'drop-shadow(0 20px 30px rgba(0,0,0,0.5))'
           }}>
             <img
-              src={bodyPhotoPaths[focusedPhoto.index % bodyPhotoPaths.length]}
+              src={photos[focusedPhoto.index % photos.length]}
               alt={`Photo ${focusedPhoto.index + 1}`}
               style={{
                 width: '400px', // Fixed smaller size
@@ -898,6 +1015,56 @@ export default function GrandTreeApp() {
               }}
             />
             {/* Removed Text Hint since it's gesture controlled now */}
+          </div>
+        </div>
+      )}
+
+      {/* Gallery Modal */}
+      {isGalleryOpen && (
+        <div style={{
+          position: 'absolute', top: 0, left: 0, width: '100vw', height: '100vh',
+          backgroundColor: 'rgba(0,0,0,0.9)', zIndex: 2000,
+          display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '40px'
+        }}>
+          <div style={{ width: '100%', maxWidth: '1000px', display: 'flex', justifyContent: 'space-between', marginBottom: '30px' }}>
+            <h2 style={{ color: '#B8E6D5', fontFamily: 'serif', margin: 0 }}>Photo Gallery</h2>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading}
+                style={{ padding: '10px 20px', backgroundColor: '#B8E6D5', border: 'none', color: '#000', fontWeight: 'bold', cursor: 'pointer' }}
+              >
+                {isUploading ? 'UPLOADING...' : 'UPLOAD NEW'}
+              </button>
+              <button onClick={() => setIsGalleryOpen(false)} style={{ padding: '10px 20px', backgroundColor: 'transparent', border: '1px solid #FFF', color: '#FFF', cursor: 'pointer' }}>
+                CLOSE
+              </button>
+            </div>
+          </div>
+
+          <div style={{
+            width: '100%', maxWidth: '1000px', flex: 1, overflowY: 'auto',
+            display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '20px',
+            alignContent: 'start'
+          }}>
+            {photos.map((url, i) => (
+              <div key={i} style={{ position: 'relative', aspectRatio: '1', border: '1px solid #333' }}>
+                <img src={url} alt="Gallery" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                {(url.startsWith('http')) && (
+                  <button
+                    onClick={(e) => handleDelete(url, e)}
+                    style={{
+                      position: 'absolute', top: '5px', right: '5px',
+                      backgroundColor: 'rgba(0,0,0,0.7)', color: '#FF4444',
+                      border: 'none', borderRadius: '50%', width: '30px', height: '30px',
+                      cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                    }}
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+            ))}
           </div>
         </div>
       )}
