@@ -757,7 +757,7 @@ const GestureController = React.memo(({ onGesture, onMove, onStatus, onPinch, de
 
 // --- App Entry ---
 export default function GrandTreeApp() {
-  const [sceneState, setSceneState] = useState<'CHAOS' | 'FORMED'>('CHAOS');
+  const [sceneState, setSceneState] = useState<'CHAOS' | 'FORMED'>('FORMED');
   const [rotationSpeed, setRotationSpeed] = useState(0);
   const [aiStatus, setAiStatus] = useState("INITIALIZING...");
   const [debugMode, setDebugMode] = useState(false);
