@@ -477,7 +477,7 @@ const MiddleText = ({ state, text, theme: _theme }: { state: 'CHAOS' | 'FORMED',
     <group ref={groupRef} position={[0, 8, 2]} rotation={[-Math.PI / 12, 0, 0]}>
       {/* Background glow layer */}
       <Text
-        font="https://fonts.gstatic.com/s/notosanssc/v39/k3kCo84MPvpLmixcA63oeAL7Iqp5IZJF9bmaG9_FnYw.ttf"
+        font="/fonts/NotoSansCJKsc-Regular.otf"
         fontSize={1.8}
         color="#FFD700"
         anchorX="center"
@@ -493,7 +493,7 @@ const MiddleText = ({ state, text, theme: _theme }: { state: 'CHAOS' | 'FORMED',
       </Text>
       {/* Main text layer */}
       <Text
-        font="https://fonts.gstatic.com/s/notosanssc/v39/k3kCo84MPvpLmixcA63oeAL7Iqp5IZJF9bmaG9_FnYw.ttf"
+        font="/fonts/NotoSansCJKsc-Regular.otf"
         fontSize={1.8}
         color="#FFFFFF"
         anchorX="center"
@@ -704,6 +704,7 @@ const Experience = ({ sceneState, rotationSpeed, customText, photos, theme }: { 
       <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
       <Environment preset="night" background={false} />
 
+
       <ambientLight intensity={0.4} color="#003311" />
       <pointLight position={[30, 30, 30]} intensity={100} color={theme.warmLight} />
       <pointLight position={[-30, 10, -30]} intensity={50} color={theme.starGold} />
@@ -730,7 +731,7 @@ const Experience = ({ sceneState, rotationSpeed, customText, photos, theme }: { 
         {/* Footer text - lily2025 */}
         <Suspense fallback={null}>
           <Text
-            font="https://fonts.gstatic.com/s/notosanssc/v39/k3kCo84MPvpLmixcA63oeAL7Iqp5IZJF9bmaG9_FnYw.ttf"
+            font="/fonts/NotoSansCJKsc-Regular.otf"
             fontSize={1.5}
             color="#FFFFFF"
             anchorX="center"
@@ -960,7 +961,7 @@ export default function GrandTreeApp() {
 STUDIO CITY`);
   const [focusedPhoto, setFocusedPhoto] = useState<{ index: number, position: THREE.Vector3 } | null>(null);
 
-  const [photos, setPhotos] = useState<string[]>(bodyPhotoPaths);
+  const photos = bodyPhotoPaths; // Using static photos list
   // Commented out: upload state - restore when upload UI is implemented
   // const [isUploading, setIsUploading] = useState(false);
   // const [isGalleryOpen, setIsGalleryOpen] = useState(false);
@@ -969,24 +970,24 @@ STUDIO CITY`);
   // Login State
 
 
-  // Fetch uploaded photos on load
-  useEffect(() => {
-    const fetchPhotos = async () => {
-      try {
-        const response = await fetch('/api/photos');
-        if (response.ok) {
-          const uploadedPhotos = await response.json();
-          if (uploadedPhotos && uploadedPhotos.length > 0) {
-            console.log("Found uploaded photos, replacing local default.");
-            setPhotos(uploadedPhotos);
-          }
-        }
-      } catch (e) {
-        console.log("Could not fetch uploaded photos (likely waiting for Vercel deployment). Using local default.");
-      }
-    };
-    fetchPhotos();
-  }, []);
+  // Fetch uploaded photos on load - disabled for faster loading
+  // useEffect(() => {
+  //   const fetchPhotos = async () => {
+  //     try {
+  //       const response = await fetch('/api/photos');
+  //       if (response.ok) {
+  //         const uploadedPhotos = await response.json();
+  //         if (uploadedPhotos && uploadedPhotos.length > 0) {
+  //           console.log("Found uploaded photos, replacing local default.");
+  //           setPhotos(uploadedPhotos);
+  //         }
+  //       }
+  //     } catch (e) {
+  //       console.log("Could not fetch uploaded photos (likely waiting for Vercel deployment). Using local default.");
+  //     }
+  //   };
+  //   fetchPhotos();
+  // }, []);
 
   // Upload handler - currently unused, uncomment when upload UI is implemented
   // const handleUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
