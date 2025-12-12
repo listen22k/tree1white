@@ -1,5 +1,7 @@
 # 🎄 Grand Luxury Interactive 3D Christmas Tree
+在https://github.com/moleculemmeng020425/christmas-tree
 
+基础上二开，支持上传图片，手势切换颜色，支持自定义文字等等
 > 一个基于 **React**, **Three.js (R3F)** 和 **AI 手势识别** 的高保真 3D 圣诞树 Web 应用。
 
 这个项目不仅仅是一棵树，它是一个承载记忆的交互式画廊。成百上千个粒子、璀璨的彩灯和悬浮的拍立得照片共同组成了一棵奢华的圣诞树。用户可以通过手势控制树的形态（聚合/散开）和视角旋转，体验电影级的视觉盛宴。
