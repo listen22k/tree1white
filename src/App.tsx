@@ -562,7 +562,7 @@ const TopStar = ({ state, theme }: { state: 'CHAOS' | 'FORMED', theme: ThemeType
 };
 
 // --- Main Scene Experience ---
-const Experience = ({ sceneState, rotationSpeed, customText, photos, theme }: { sceneState: 'CHAOS' | 'FORMED', rotationSpeed: number, customText: string, photos: string[], theme: ThemeType }) => {
+const Experience = ({ sceneState, rotationSpeed, customText, photos, theme, isHandDetected }: { sceneState: 'CHAOS' | 'FORMED', rotationSpeed: number, customText: string, photos: string[], theme: ThemeType, isHandDetected: boolean }) => {
   const controlsRef = useRef<any>(null);
   const { viewport } = useThree();
 
@@ -583,7 +583,7 @@ const Experience = ({ sceneState, rotationSpeed, customText, photos, theme }: { 
   return (
     <>
       <PerspectiveCamera makeDefault position={[0, 8, cameraZ]} fov={45} />
-      <OrbitControls ref={controlsRef} enablePan={false} enableZoom={true} minDistance={30} maxDistance={150} autoRotate={rotationSpeed === 0 && sceneState === 'FORMED'} autoRotateSpeed={0.3} maxPolarAngle={Math.PI / 1.7} />
+      <OrbitControls ref={controlsRef} enablePan={false} enableZoom={true} minDistance={30} maxDistance={150} autoRotate={!isHandDetected && sceneState === 'FORMED'} autoRotateSpeed={1.0} maxPolarAngle={Math.PI / 1.7} />
 
       <color attach="background" args={['#000300']} />
       <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
@@ -617,7 +617,7 @@ const Experience = ({ sceneState, rotationSpeed, customText, photos, theme }: { 
 
 // --- Gesture Controller ---
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const GestureController = React.memo(({ onGesture, onMove, onStatus, onPinch, onThemeChange, debugMode }: any) => {
+const GestureController = React.memo(({ onGesture, onMove, onStatus, onPinch, onThemeChange, onHandDetected, debugMode }: any) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -628,8 +628,11 @@ const GestureController = React.memo(({ onGesture, onMove, onStatus, onPinch, on
     onStatus: any,
     onPinch: any,
     onThemeChange: any,
+    onHandDetected: any,
     lastMoveTime?: number
-  }>({ onGesture, onMove, onStatus, onPinch, onThemeChange });
+  }>({ onGesture, onMove, onStatus, onPinch, onThemeChange, onHandDetected });
+
+  const isHandDetectedRef = useRef(false);
 
   // Use ref to track pinch state across renders
   const isPinchingRef = useRef(false);
@@ -637,9 +640,9 @@ const GestureController = React.memo(({ onGesture, onMove, onStatus, onPinch, on
   useEffect(() => {
     callbacksRef.current = {
       ...callbacksRef.current,
-      onGesture, onMove, onStatus, onPinch, onThemeChange
+      onGesture, onMove, onStatus, onPinch, onThemeChange, onHandDetected
     };
-  }, [onGesture, onMove, onStatus, onPinch, onThemeChange]);
+  }, [onGesture, onMove, onStatus, onPinch, onThemeChange, onHandDetected]);
 
   useEffect(() => {
     let gestureRecognizer: GestureRecognizer;
@@ -715,8 +718,15 @@ const GestureController = React.memo(({ onGesture, onMove, onStatus, onPinch, on
             ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
           }
 
-          const { onGesture, onMove, onStatus, onPinch } = callbacksRef.current;
+          const { onGesture, onMove, onStatus, onPinch, onHandDetected } = callbacksRef.current;
           const now = Date.now();
+
+          // Robust hand detection using landmarks
+          const hasHand = results.landmarks && results.landmarks.length > 0;
+          if (hasHand !== isHandDetectedRef.current) {
+            isHandDetectedRef.current = hasHand;
+            if (onHandDetected) onHandDetected(hasHand);
+          }
 
           if (results.gestures.length > 0) {
             const name = results.gestures[0][0].categoryName; const score = results.gestures[0][0].score;
@@ -818,6 +828,7 @@ export default function GrandTreeApp() {
   const [themeMode, setThemeMode] = useState<'modern' | 'classic'>('modern');
   const currentTheme = THEMES[themeMode];
   const [rotationSpeed, setRotationSpeed] = useState(0);
+  const [isHandDetected, setIsHandDetected] = useState(false);
   const [aiStatus, setAiStatus] = useState("INITIALIZING...");
   const [debugMode, setDebugMode] = useState(false);
   const [customText, setCustomText] = useState('Christmas Tree');
@@ -966,10 +977,10 @@ export default function GrandTreeApp() {
     <div className="ui-container">
       <div className="canvas-container">
         <Canvas dpr={[1, 2]} gl={{ toneMapping: THREE.ReinhardToneMapping }} shadows>
-          <Experience sceneState={sceneState} rotationSpeed={rotationSpeed} customText={customText} photos={photos} theme={currentTheme} />
+          <Experience sceneState={sceneState} rotationSpeed={rotationSpeed} customText={customText} photos={photos} theme={currentTheme} isHandDetected={isHandDetected} />
         </Canvas>
       </div>
-      <GestureController onGesture={setSceneState} onMove={setRotationSpeed} onStatus={setAiStatus} onPinch={handlePinch} onThemeChange={setThemeMode} debugMode={debugMode} />
+      <GestureController onGesture={setSceneState} onMove={setRotationSpeed} onStatus={setAiStatus} onPinch={handlePinch} onThemeChange={setThemeMode} onHandDetected={setIsHandDetected} debugMode={debugMode} />
 
       {/* UI - Stats */}
       <div className="stats-panel">
