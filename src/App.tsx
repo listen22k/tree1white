@@ -98,10 +98,20 @@ const THEMES = {
     warmLight: '#FFD54F',
     flowerColorA: '#D32F2F', // Red
     flowerColorB: '#FFD700'  // Gold
+  },
+  silverIce: {
+    foliageBase: '#E8EEF2', // Shimmering Silver White
+    baubleColors: ['#FFFFFF', '#D1E8F5', '#A4C8E0', '#C0C0C0', '#F0F8FF'],
+    lights: ['#FFFFFF', '#E0FFFF', '#B0E0E6', '#F0FFFF'], // Cool whites and cyans
+    starGold: '#E0E0E0', // Silver Star
+    textColor: '#E0FFFF',
+    warmLight: '#D0E0FF', // Cool Blue Light
+    flowerColorA: '#A4C8E0',
+    flowerColorB: '#FFFFFF'
   }
 };
 
-type ThemeType = typeof THEMES.modern;
+type ThemeType = typeof THEMES.modern | typeof THEMES.silverIce;
 
 // --- Shader Material (Foliage) ---
 const FoliageMaterial = shaderMaterial(
@@ -688,6 +698,64 @@ const Snowman = ({ state, position = [-10, -10, 6], scale = 1 }: { state: 'CHAOS
   );
 };
 
+// --- Component: Tree Base (Podium) ---
+const TreeBase = ({ theme }: { theme: ThemeType }) => {
+  // Base cylinder
+  const baseGeometry = useMemo(() => new THREE.CylinderGeometry(14, 14, 2, 32), []);
+  // Surrounding spheres
+  const sphereGeometry = useMemo(() => new THREE.SphereGeometry(1.5, 32, 32), []);
+  const sphereCount = 150;
+
+  const spheres = useMemo(() => {
+    return new Array(sphereCount).fill(0).map((_, i) => {
+      // Random angle
+      const angle = Math.random() * Math.PI * 2;
+      // Varied radius to create depth (not just a single ring)
+      const radius = 13 + Math.random() * 4;
+      const x = Math.cos(angle) * radius;
+      const z = Math.sin(angle) * radius;
+
+      // Varied scale for "Big and Small" look - Reduced size
+      const scale = 0.3 + Math.random() * 0.9; // Range: 0.3 - 1.2
+
+      // 40% chance of being "Foam" (snowy/matte), 60% Silver/Shiny
+      const isFoam = Math.random() < 0.4;
+
+      return {
+        position: [x, 0.5 * scale, z] as [number, number, number],
+        scale,
+        colorIndex: i,
+        isFoam
+      };
+    });
+  }, []);
+
+  return (
+    <group position={[0, -CONFIG.tree.height / 2 - 1, 0]}>
+      {/* Main White Podium */}
+      <mesh geometry={baseGeometry} position={[0, 0, 0]}>
+        <meshStandardMaterial color="#FFFFFF" roughness={0.2} metalness={0.1} />
+      </mesh>
+
+      {/* Decorative Spheres around base */}
+      {spheres.map((s, i) => (
+        <mesh key={i} geometry={sphereGeometry} position={s.position} scale={s.scale}>
+          <meshStandardMaterial
+            color={s.isFoam ? '#FFFFFF' : theme.baubleColors[s.colorIndex % theme.baubleColors.length]}
+            // Foam is rough (matte), Silver is smooth (shiny)
+            roughness={s.isFoam ? 0.9 : 0.1}
+            metalness={s.isFoam ? 0.0 : 0.8}
+            envMapIntensity={s.isFoam ? 0 : 1.5}
+            // Emissive only for non-foam to catch light? Or keep separate.
+            emissive={s.isFoam ? "#F0F8FF" : "#000000"}
+            emissiveIntensity={s.isFoam ? 0.2 : 0}
+          />
+        </mesh>
+      ))}
+    </group>
+  );
+};
+
 // --- Main Scene Experience ---
 const Experience = ({ sceneState, rotationSpeed, customText, photos, theme }: { sceneState: 'CHAOS' | 'FORMED', rotationSpeed: number, customText: string, photos: string[], theme: ThemeType }) => {
   const controlsRef = useRef<any>(null);
@@ -717,10 +785,10 @@ const Experience = ({ sceneState, rotationSpeed, customText, photos, theme }: { 
       <Environment preset="night" background={false} />
 
 
-      <ambientLight intensity={0.4} color="#003311" />
-      <pointLight position={[30, 30, 30]} intensity={100} color={theme.warmLight} />
-      <pointLight position={[-30, 10, -30]} intensity={50} color={theme.starGold} />
-      <pointLight position={[0, -20, 10]} intensity={30} color="#ffffff" />
+      <ambientLight intensity={0.6} color="#E0F4FF" />
+      <pointLight position={[30, 30, 30]} intensity={80} color={theme.warmLight} />
+      <pointLight position={[-30, 10, -30]} intensity={50} color="#FFFFFF" />
+      <pointLight position={[0, -20, 10]} intensity={40} color="#E0FFFF" />
 
       <group position={[0, -6, 0]}>
         <Foliage state={sceneState} theme={theme} />
@@ -730,6 +798,9 @@ const Experience = ({ sceneState, rotationSpeed, customText, photos, theme }: { 
           <ChristmasElements state={sceneState} theme={theme} />
           <FairyLights state={sceneState} theme={theme} />
           <TopStar state={sceneState} theme={theme} />
+          {/* Tree Base */}
+          <TreeBase theme={theme} />
+
           {/* Left side decorations - snowmen */}
           <Snowman state={sceneState} />
           {/* Small snowman - 小雪人 */}
@@ -738,7 +809,7 @@ const Experience = ({ sceneState, rotationSpeed, customText, photos, theme }: { 
 
         <MiddleText state={sceneState} text={customText} theme={theme} />
 
-        <Sparkles count={600} scale={50} size={8} speed={0.4} opacity={0.4} color={CONFIG.colors.silver} />
+        <Sparkles count={800} scale={60} size={10} speed={0.2} opacity={0.6} color="#E0FFFF" />
 
         {/* Footer text - lily2025 */}
         <Suspense fallback={null}>
@@ -748,7 +819,7 @@ const Experience = ({ sceneState, rotationSpeed, customText, photos, theme }: { 
             color="#FFFFFF"
             anchorX="center"
             anchorY="middle"
-            position={[0, -12, 15]}
+            position={[0, -12, 22]}
             outlineWidth={0.04}
             outlineColor="#333333"
             outlineOpacity={0.8}
@@ -964,13 +1035,13 @@ const GestureController = React.memo(({ onGesture, onMove, onStatus, onPinch, de
 // --- App Entry ---
 export default function GrandTreeApp() {
   const [sceneState, setSceneState] = useState<'CHAOS' | 'FORMED'>('FORMED');
-  const [themeMode] = useState<'modern' | 'classic'>('modern');
+  const [themeMode] = useState<'modern' | 'classic' | 'silverIce'>('silverIce');
   const currentTheme = THEMES[themeMode];
   const [rotationSpeed, setRotationSpeed] = useState(0);
   const [_aiStatus, setAiStatus] = useState("INITIALIZING...");
   const [debugMode, _setDebugMode] = useState(false);
-  const [customText] = useState(`新濠影匯
-STUDIO CITY`);
+  const [customText] = useState(`新濠天地
+CITY IF DREAMS`);
   const [focusedPhoto, setFocusedPhoto] = useState<{ index: number, position: THREE.Vector3 } | null>(null);
 
   // 懒加载照片：先渲染树，延迟加载照片
