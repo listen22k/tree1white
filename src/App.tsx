@@ -67,6 +67,31 @@ const CONFIG = {
   tree: { height: 22, radius: 9 }, // 树体尺寸
 };
 
+const THEMES = {
+  modern: {
+    foliageBase: '#A8D5C5',
+    baubleColors: ['#FFF8E7', '#FFFFFF', '#FFE4E1', '#E0F4FF', '#D5F5E8', '#F5DEB3', '#B8E6D5'],
+    lights: ['#FFE4E1', '#E0F4FF', '#FFF8E7', '#D5F5E8'],
+    starGold: '#F5DEB3',
+    textColor: '#FFFFFF',
+    warmLight: '#FFF4E0',
+    flowerColorA: '#FFE4E1', // lightPink
+    flowerColorB: '#FFFFFF'
+  },
+  classic: {
+    foliageBase: '#004225', // Emerald
+    baubleColors: ['#D32F2F', '#FFD700', '#ECEFF1', '#2E7D32', '#FFFFFF'], // Red, Gold, Silver, Green, White
+    lights: ['#FF0000', '#00FF00', '#0000FF', '#FFFF00'], // RGBY
+    starGold: '#FFD700',
+    textColor: '#FFD700',
+    warmLight: '#FFD54F',
+    flowerColorA: '#D32F2F', // Red
+    flowerColorB: '#FFD700'  // Gold
+  }
+};
+
+type ThemeType = typeof THEMES.modern;
+
 // --- Shader Material (Foliage) ---
 const FoliageMaterial = shaderMaterial(
   { uTime: 0, uColor: new THREE.Color(CONFIG.colors.foliageBase), uProgress: 0 },
@@ -102,7 +127,7 @@ const getTreePosition = () => {
 };
 
 // --- Component: Foliage ---
-const Foliage = ({ state }: { state: 'CHAOS' | 'FORMED' }) => {
+const Foliage = ({ state, theme }: { state: 'CHAOS' | 'FORMED', theme: ThemeType }) => {
   const materialRef = useRef<any>(null);
   const { positions, targetPositions, randoms } = useMemo(() => {
     const count = CONFIG.counts.foliage;
@@ -119,6 +144,7 @@ const Foliage = ({ state }: { state: 'CHAOS' | 'FORMED' }) => {
   useFrame((rootState, delta) => {
     if (materialRef.current) {
       materialRef.current.uTime = rootState.clock.elapsedTime;
+      materialRef.current.uColor.set(theme.foliageBase);
       const targetProgress = state === 'FORMED' ? 1 : 0;
       materialRef.current.uProgress = MathUtils.damp(materialRef.current.uProgress, targetProgress, 1.5, delta);
     }
@@ -136,8 +162,8 @@ const Foliage = ({ state }: { state: 'CHAOS' | 'FORMED' }) => {
   );
 };
 
-// --- Component: Bauble Ornaments (Pastel Spheres) ---
-const BaubleOrnaments = ({ state }: { state: 'CHAOS' | 'FORMED' }) => {
+// --- Component: BaubleOrnaments (Pastel Spheres) ---
+const BaubleOrnaments = ({ state, theme }: { state: 'CHAOS' | 'FORMED', theme: ThemeType }) => {
   const count = CONFIG.counts.baubles;
   const groupRef = useRef<THREE.Group>(null);
   const geometry = useMemo(() => new THREE.SphereGeometry(0.5, 16, 16), []); // Smaller sphere for baubles
@@ -153,7 +179,7 @@ const BaubleOrnaments = ({ state }: { state: 'CHAOS' | 'FORMED' }) => {
       const theta = Math.random() * Math.PI * 2;
       const targetPos = new THREE.Vector3(currentRadius * Math.cos(theta), y, currentRadius * Math.sin(theta));
 
-      const color = CONFIG.colors.baubleColors[Math.floor(Math.random() * CONFIG.colors.baubleColors.length)];
+      const colorIndex = Math.floor(Math.random() * 100);
       const scale = 0.5 + Math.random() * 0.5; // Random scale for variety
       const rotationSpeed = {
         x: (Math.random() - 0.5) * 0.5,
@@ -162,7 +188,7 @@ const BaubleOrnaments = ({ state }: { state: 'CHAOS' | 'FORMED' }) => {
       };
 
       return {
-        chaosPos, targetPos, color, scale,
+        chaosPos, targetPos, colorIndex, scale,
         currentPos: chaosPos.clone(),
         chaosRotation: new THREE.Euler(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI),
         rotationSpeed,
@@ -206,23 +232,26 @@ const BaubleOrnaments = ({ state }: { state: 'CHAOS' | 'FORMED' }) => {
 
   return (
     <group ref={groupRef}>
-      {data.map((obj, i) => (
-        <mesh key={i} scale={[obj.scale, obj.scale, obj.scale]} geometry={geometry} rotation={state === 'CHAOS' ? obj.chaosRotation : [0, 0, 0]}>
-          <meshStandardMaterial
-            color={obj.color}
-            roughness={0.2}
-            metalness={0.5}
-            emissive={obj.color}
-            emissiveIntensity={0.3} // Subtle glow
-          />
-        </mesh>
-      ))}
+      {data.map((obj, i) => {
+        const color = theme.baubleColors[obj.colorIndex % theme.baubleColors.length];
+        return (
+          <mesh key={i} scale={[obj.scale, obj.scale, obj.scale]} geometry={geometry} rotation={state === 'CHAOS' ? obj.chaosRotation : [0, 0, 0]}>
+            <meshStandardMaterial
+              color={color}
+              roughness={0.2}
+              metalness={0.5}
+              emissive={color}
+              emissiveIntensity={0.3} // Subtle glow
+            />
+          </mesh>
+        );
+      })}
     </group>
   );
 };
 
 // --- Component: Photo Ornaments (Polaroid Photos) ---
-const PhotoOrnaments = ({ state, photos }: { state: 'CHAOS' | 'FORMED', photos: string[] }) => {
+const PhotoOrnaments = ({ state, photos, theme }: { state: 'CHAOS' | 'FORMED', photos: string[], theme: ThemeType }) => {
   // Load textures directly from the dynamic paths array
   const textures = useTexture(photos);
   const count = photos.length;
@@ -243,7 +272,7 @@ const PhotoOrnaments = ({ state, photos }: { state: 'CHAOS' | 'FORMED', photos: 
       const isBig = Math.random() < 0.15;
       const baseScale = isBig ? 2.0 : 0.7 + Math.random() * 0.5;
       const weight = 0.8 + Math.random() * 1.2;
-      const borderColor = CONFIG.colors.baubleColors[Math.floor(Math.random() * CONFIG.colors.baubleColors.length)];
+      const borderColorIndex = Math.floor(Math.random() * 100);
 
       const rotationSpeed = {
         x: (Math.random() - 0.5) * 0.8,
@@ -254,7 +283,7 @@ const PhotoOrnaments = ({ state, photos }: { state: 'CHAOS' | 'FORMED', photos: 
       return {
         chaosPos, targetPos, scale: baseScale, weight,
         textureIndex: i % textures.length,
-        borderColor,
+        borderColorIndex,
         currentPos: chaosPos.clone(),
         chaosRotation: new THREE.Euler(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI),
         rotationSpeed,
@@ -294,33 +323,36 @@ const PhotoOrnaments = ({ state, photos }: { state: 'CHAOS' | 'FORMED', photos: 
 
   return (
     <group ref={groupRef}>
-      {data.map((obj, i) => (
-        <group
-          key={i}
-          scale={[obj.scale, obj.scale, obj.scale]}
-          rotation={state === 'CHAOS' ? obj.chaosRotation : [0, 0, 0]}
-        >
-          {/* Photo with border */}
-          <mesh geometry={photoGeometry} position={[0, 0.15, 0.01]}>
-            <meshStandardMaterial
-              map={textures[obj.textureIndex]}
-              roughness={0.5} metalness={0}
-              emissive={CONFIG.colors.white}
-              emissiveIntensity={0.3}
-            />
-          </mesh>
-          <mesh geometry={borderGeometry}>
-            <meshStandardMaterial color={obj.borderColor} roughness={0.9} metalness={0} />
-          </mesh>
-        </group>
-      ))}
+      {data.map((obj, i) => {
+        const borderColor = theme.baubleColors[obj.borderColorIndex % theme.baubleColors.length];
+        return (
+          <group
+            key={i}
+            scale={[obj.scale, obj.scale, obj.scale]}
+            rotation={state === 'CHAOS' ? obj.chaosRotation : [0, 0, 0]}
+          >
+            {/* Photo with border */}
+            <mesh geometry={photoGeometry} position={[0, 0.15, 0.01]}>
+              <meshStandardMaterial
+                map={textures[obj.textureIndex]}
+                roughness={0.5} metalness={0}
+                emissive={CONFIG.colors.white}
+                emissiveIntensity={0.3}
+              />
+            </mesh>
+            <mesh geometry={borderGeometry}>
+              <meshStandardMaterial color={borderColor} roughness={0.9} metalness={0} />
+            </mesh>
+          </group>
+        );
+      })}
     </group>
   );
 };
 
 
 // --- Component: Christmas Elements ---
-const ChristmasElements = ({ state }: { state: 'CHAOS' | 'FORMED' }) => {
+const ChristmasElements = ({ state, theme }: { state: 'CHAOS' | 'FORMED', theme: ThemeType }) => {
   const count = CONFIG.counts.elements;
   const groupRef = useRef<THREE.Group>(null);
 
@@ -340,14 +372,16 @@ const ChristmasElements = ({ state }: { state: 'CHAOS' | 'FORMED' }) => {
       const targetPos = new THREE.Vector3(currentRadius * Math.cos(theta), y, currentRadius * Math.sin(theta));
 
       const type = Math.floor(Math.random() * 3);
-      let color; let scale = 1;
-      if (type === 0) { color = CONFIG.colors.baubleColors[Math.floor(Math.random() * CONFIG.colors.baubleColors.length)]; scale = 0.8 + Math.random() * 0.4; }
-      else if (type === 1) { color = CONFIG.colors.baubleColors[Math.floor(Math.random() * CONFIG.colors.baubleColors.length)]; scale = 0.6 + Math.random() * 0.4; }
-      else { color = Math.random() > 0.5 ? CONFIG.colors.lightPink : CONFIG.colors.white; scale = 0.7 + Math.random() * 0.3; }
+      let scale = 1;
+      let colorType = 0; // 0: baubleColor, 1: flowerA, 2: flowerB
 
+      if (type === 0) { colorType = 0; scale = 0.8 + Math.random() * 0.4; }
+      else if (type === 1) { colorType = 0; scale = 0.6 + Math.random() * 0.4; }
+      else { colorType = Math.random() > 0.5 ? 1 : 2; scale = 0.7 + Math.random() * 0.3; }
 
       const rotationSpeed = { x: (Math.random() - 0.5) * 2.0, y: (Math.random() - 0.5) * 2.0, z: (Math.random() - 0.5) * 2.0 };
-      return { type, chaosPos, targetPos, color, scale, currentPos: chaosPos.clone(), chaosRotation: new THREE.Euler(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI), rotationSpeed };
+      const colorIndex = Math.floor(Math.random() * 100);
+      return { type, chaosPos, targetPos, colorType, colorIndex, scale, currentPos: chaosPos.clone(), chaosRotation: new THREE.Euler(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI), rotationSpeed };
     });
   }, [boxGeometry, sphereGeometry, caneGeometry]);
 
@@ -368,8 +402,14 @@ const ChristmasElements = ({ state }: { state: 'CHAOS' | 'FORMED' }) => {
     <group ref={groupRef}>
       {data.map((obj, i) => {
         let geometry; if (obj.type === 0) geometry = boxGeometry; else if (obj.type === 1) geometry = sphereGeometry; else geometry = caneGeometry;
+
+        let color;
+        if (obj.colorType === 0) color = theme.baubleColors[obj.colorIndex % theme.baubleColors.length];
+        else if (obj.colorType === 1) color = theme.flowerColorA;
+        else color = theme.flowerColorB;
+
         return (<mesh key={i} scale={[obj.scale, obj.scale, obj.scale]} geometry={geometry} rotation={obj.chaosRotation}>
-          <meshStandardMaterial color={obj.color} roughness={0.3} metalness={0.4} emissive={obj.color} emissiveIntensity={0.2} />
+          <meshStandardMaterial color={color} roughness={0.3} metalness={0.4} emissive={color} emissiveIntensity={0.2} />
         </mesh>)
       })}
     </group>
@@ -377,7 +417,7 @@ const ChristmasElements = ({ state }: { state: 'CHAOS' | 'FORMED' }) => {
 };
 
 // --- Component: Fairy Lights ---
-const FairyLights = ({ state }: { state: 'CHAOS' | 'FORMED' }) => {
+const FairyLights = ({ state, theme }: { state: 'CHAOS' | 'FORMED', theme: ThemeType }) => {
   const count = CONFIG.counts.lights;
   const groupRef = useRef<THREE.Group>(null);
   const geometry = useMemo(() => new THREE.SphereGeometry(0.8, 8, 8), []);
@@ -388,9 +428,9 @@ const FairyLights = ({ state }: { state: 'CHAOS' | 'FORMED' }) => {
       const h = CONFIG.tree.height; const y = (Math.random() * h) - (h / 2); const rBase = CONFIG.tree.radius;
       const currentRadius = (rBase * (1 - (y + (h / 2)) / h)) + 0.3; const theta = Math.random() * Math.PI * 2;
       const targetPos = new THREE.Vector3(currentRadius * Math.cos(theta), y, currentRadius * Math.sin(theta));
-      const color = CONFIG.colors.lights[Math.floor(Math.random() * CONFIG.colors.lights.length)];
+      const colorIndex = Math.floor(Math.random() * 100);
       const speed = 2 + Math.random() * 3;
-      return { chaosPos, targetPos, color, speed, currentPos: chaosPos.clone(), timeOffset: Math.random() * 100 };
+      return { chaosPos, targetPos, colorIndex, speed, currentPos: chaosPos.clone(), timeOffset: Math.random() * 100 };
     });
   }, []);
 
@@ -411,15 +451,18 @@ const FairyLights = ({ state }: { state: 'CHAOS' | 'FORMED' }) => {
 
   return (
     <group ref={groupRef}>
-      {data.map((obj, i) => (<mesh key={i} scale={[0.15, 0.15, 0.15]} geometry={geometry}>
-        <meshStandardMaterial color={obj.color} emissive={obj.color} emissiveIntensity={0} toneMapped={false} />
-      </mesh>))}
+      {data.map((obj, i) => {
+        const color = theme.lights[obj.colorIndex % theme.lights.length];
+        return (<mesh key={i} scale={[0.15, 0.15, 0.15]} geometry={geometry}>
+          <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0} toneMapped={false} />
+        </mesh>)
+      })}
     </group>
   );
 };
 
 // --- Component: Middle Text (3D Customizable Text) ---
-const MiddleText = ({ state, text }: { state: 'CHAOS' | 'FORMED', text: string }) => {
+const MiddleText = ({ state, text, theme }: { state: 'CHAOS' | 'FORMED', text: string, theme: ThemeType }) => {
   const groupRef = useRef<THREE.Group>(null);
   const [opacity, setOpacity] = useState(0);
 
@@ -455,8 +498,8 @@ const MiddleText = ({ state, text }: { state: 'CHAOS' | 'FORMED', text: string }
         >
           {text}
           <meshStandardMaterial
-            color={CONFIG.colors.textColor}
-            emissive={CONFIG.colors.textColor}
+            color={theme.textColor}
+            emissive={theme.textColor}
             emissiveIntensity={0.8}
             roughness={0.2}
             metalness={0.6}
@@ -470,7 +513,7 @@ const MiddleText = ({ state, text }: { state: 'CHAOS' | 'FORMED', text: string }
 };
 
 // --- Component: Top Star (No Photo, Pure Gold 3D Star) ---
-const TopStar = ({ state }: { state: 'CHAOS' | 'FORMED' }) => {
+const TopStar = ({ state, theme }: { state: 'CHAOS' | 'FORMED', theme: ThemeType }) => {
   const groupRef = useRef<THREE.Group>(null);
 
   const starShape = useMemo(() => {
@@ -494,12 +537,12 @@ const TopStar = ({ state }: { state: 'CHAOS' | 'FORMED' }) => {
 
   // 柔和金色材质
   const goldMaterial = useMemo(() => new THREE.MeshStandardMaterial({
-    color: CONFIG.colors.starGold,
-    emissive: CONFIG.colors.starGold,
+    color: theme.starGold,
+    emissive: theme.starGold,
     emissiveIntensity: 1.2, // 柔和发光
     roughness: 0.2,
     metalness: 0.8,
-  }), []);
+  }), [theme.starGold]);
 
   useFrame((_, delta) => {
     if (groupRef.current) {
@@ -519,7 +562,7 @@ const TopStar = ({ state }: { state: 'CHAOS' | 'FORMED' }) => {
 };
 
 // --- Main Scene Experience ---
-const Experience = ({ sceneState, rotationSpeed, customText, photos }: { sceneState: 'CHAOS' | 'FORMED', rotationSpeed: number, customText: string, photos: string[] }) => {
+const Experience = ({ sceneState, rotationSpeed, customText, photos, theme }: { sceneState: 'CHAOS' | 'FORMED', rotationSpeed: number, customText: string, photos: string[], theme: ThemeType }) => {
   const controlsRef = useRef<any>(null);
   const { viewport } = useThree();
 
@@ -547,19 +590,19 @@ const Experience = ({ sceneState, rotationSpeed, customText, photos }: { sceneSt
       <Environment preset="night" background={false} />
 
       <ambientLight intensity={0.4} color="#003311" />
-      <pointLight position={[30, 30, 30]} intensity={100} color={CONFIG.colors.warmLight} />
-      <pointLight position={[-30, 10, -30]} intensity={50} color={CONFIG.colors.gold} />
+      <pointLight position={[30, 30, 30]} intensity={100} color={theme.warmLight} />
+      <pointLight position={[-30, 10, -30]} intensity={50} color={theme.starGold} />
       <pointLight position={[0, -20, 10]} intensity={30} color="#ffffff" />
 
       <group position={[0, -6, 0]}>
-        <Foliage state={sceneState} />
+        <Foliage state={sceneState} theme={theme} />
         <Suspense fallback={null}>
-          {photos.length > 0 && <PhotoOrnaments state={sceneState} photos={photos} />}
-          <BaubleOrnaments state={sceneState} />
-          <ChristmasElements state={sceneState} />
-          <FairyLights state={sceneState} />
-          <MiddleText state={sceneState} text={customText} />
-          <TopStar state={sceneState} />
+          {photos.length > 0 && <PhotoOrnaments state={sceneState} photos={photos} theme={theme} />}
+          <BaubleOrnaments state={sceneState} theme={theme} />
+          <ChristmasElements state={sceneState} theme={theme} />
+          <FairyLights state={sceneState} theme={theme} />
+          <MiddleText state={sceneState} text={customText} theme={theme} />
+          <TopStar state={sceneState} theme={theme} />
         </Suspense>
         <Sparkles count={600} scale={50} size={8} speed={0.4} opacity={0.4} color={CONFIG.colors.silver} />
       </group>
@@ -574,7 +617,7 @@ const Experience = ({ sceneState, rotationSpeed, customText, photos }: { sceneSt
 
 // --- Gesture Controller ---
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const GestureController = React.memo(({ onGesture, onMove, onStatus, onPinch, debugMode }: any) => {
+const GestureController = React.memo(({ onGesture, onMove, onStatus, onPinch, onThemeChange, debugMode }: any) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -584,8 +627,9 @@ const GestureController = React.memo(({ onGesture, onMove, onStatus, onPinch, de
     onMove: any,
     onStatus: any,
     onPinch: any,
+    onThemeChange: any,
     lastMoveTime?: number
-  }>({ onGesture, onMove, onStatus, onPinch });
+  }>({ onGesture, onMove, onStatus, onPinch, onThemeChange });
 
   // Use ref to track pinch state across renders
   const isPinchingRef = useRef(false);
@@ -593,9 +637,9 @@ const GestureController = React.memo(({ onGesture, onMove, onStatus, onPinch, de
   useEffect(() => {
     callbacksRef.current = {
       ...callbacksRef.current,
-      onGesture, onMove, onStatus, onPinch
+      onGesture, onMove, onStatus, onPinch, onThemeChange
     };
-  }, [onGesture, onMove, onStatus, onPinch]);
+  }, [onGesture, onMove, onStatus, onPinch, onThemeChange]);
 
   useEffect(() => {
     let gestureRecognizer: GestureRecognizer;
@@ -678,6 +722,8 @@ const GestureController = React.memo(({ onGesture, onMove, onStatus, onPinch, de
             const name = results.gestures[0][0].categoryName; const score = results.gestures[0][0].score;
             if (score > 0.4) {
               if (name === "Open_Palm") onGesture("CHAOS"); if (name === "Closed_Fist") onGesture("FORMED");
+              if (name === "Pointing_Up") callbacksRef.current.onThemeChange("classic");
+              if (name === "Victory") callbacksRef.current.onThemeChange("modern");
               if (debugMode) onStatus(`DETECTED: ${name}`);
             }
             if (results.landmarks.length > 0) {
@@ -769,6 +815,8 @@ const GestureController = React.memo(({ onGesture, onMove, onStatus, onPinch, de
 // --- App Entry ---
 export default function GrandTreeApp() {
   const [sceneState, setSceneState] = useState<'CHAOS' | 'FORMED'>('FORMED');
+  const [themeMode, setThemeMode] = useState<'modern' | 'classic'>('modern');
+  const currentTheme = THEMES[themeMode];
   const [rotationSpeed, setRotationSpeed] = useState(0);
   const [aiStatus, setAiStatus] = useState("INITIALIZING...");
   const [debugMode, setDebugMode] = useState(false);
@@ -918,23 +966,23 @@ export default function GrandTreeApp() {
     <div className="ui-container">
       <div className="canvas-container">
         <Canvas dpr={[1, 2]} gl={{ toneMapping: THREE.ReinhardToneMapping }} shadows>
-          <Experience sceneState={sceneState} rotationSpeed={rotationSpeed} customText={customText} photos={photos} />
+          <Experience sceneState={sceneState} rotationSpeed={rotationSpeed} customText={customText} photos={photos} theme={currentTheme} />
         </Canvas>
       </div>
-      <GestureController onGesture={setSceneState} onMove={setRotationSpeed} onStatus={setAiStatus} onPinch={handlePinch} debugMode={debugMode} />
+      <GestureController onGesture={setSceneState} onMove={setRotationSpeed} onStatus={setAiStatus} onPinch={handlePinch} onThemeChange={setThemeMode} debugMode={debugMode} />
 
       {/* UI - Stats */}
       <div className="stats-panel">
         <div className="stat-item">
           <p>Photos</p>
-          <p style={{ color: '#B8E6D5' }}>
+          <p style={{ color: currentTheme.foliageBase }}>
             {photos.length.toLocaleString()} <span style={{ fontSize: '10px', color: '#555', fontWeight: 'normal' }}>POLAROIDS</span>
           </p>
         </div>
         <div className="stat-item">
           <p>Foliage</p>
-          <p style={{ color: '#A8D5C5' }}>
-            {(CONFIG.counts.foliage / 1000).toFixed(0)}K <span style={{ fontSize: '10px', color: '#555', fontWeight: 'normal' }}>MINT NEEDLES</span>
+          <p style={{ color: currentTheme.foliageBase }}>
+            {(CONFIG.counts.foliage / 1000).toFixed(0)}K <span style={{ fontSize: '10px', color: '#555', fontWeight: 'normal' }}>NEEDLES</span>
           </p>
         </div>
       </div>
@@ -1025,12 +1073,12 @@ export default function GrandTreeApp() {
       {isGalleryOpen && (
         <div className="gallery-modal-overlay">
           <div style={{ width: '100%', maxWidth: '1000px', display: 'flex', justifyContent: 'space-between', marginBottom: '30px', alignItems: 'center' }}>
-            <h2 style={{ color: '#B8E6D5', fontFamily: 'serif', margin: 0 }}>Photo Gallery</h2>
+            <h2 style={{ color: currentTheme.foliageBase, fontFamily: 'serif', margin: 0 }}>Photo Gallery</h2>
             <div style={{ display: 'flex', gap: '10px' }}>
               <button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isUploading}
-                style={{ padding: '10px 20px', backgroundColor: '#B8E6D5', border: 'none', color: '#000', fontWeight: 'bold', cursor: 'pointer' }}
+                style={{ padding: '10px 20px', backgroundColor: currentTheme.foliageBase, border: 'none', color: '#000', fontWeight: 'bold', cursor: 'pointer' }}
               >
                 {isUploading ? 'UPLOADING...' : 'UPLOAD NEW'}
               </button>

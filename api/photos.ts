@@ -44,7 +44,12 @@ export default async function handler(request: IncomingMessage, response: Server
 
         // GET
         const { blobs } = await list({ prefix: 'tree1/' });
-        return json(blobs.map(blob => blob.url));
+        // Filter out the directory itself and ensure only images are returned
+        const imageBlobs = blobs.filter(blob =>
+            !blob.url.endsWith('/') &&
+            /\.(jpg|jpeg|png|gif|webp)$/i.test(blob.pathname)
+        );
+        return json(imageBlobs.map(blob => blob.url));
 
     } catch (error) {
         console.error(error);
