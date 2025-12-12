@@ -461,7 +461,7 @@ const FairyLights = ({ state, theme }: { state: 'CHAOS' | 'FORMED', theme: Theme
 };
 
 // --- Component: Middle Text (3D Customizable Text) ---
-const MiddleText = ({ state, text, theme }: { state: 'CHAOS' | 'FORMED', text: string, theme: ThemeType }) => {
+const MiddleText = ({ state, text, theme: _theme }: { state: 'CHAOS' | 'FORMED', text: string, theme: ThemeType }) => {
   const groupRef = useRef<THREE.Group>(null);
 
   useFrame((_, delta) => {
@@ -474,15 +474,35 @@ const MiddleText = ({ state, text, theme }: { state: 'CHAOS' | 'FORMED', text: s
   if (!text || text.trim() === '') return null;
 
   return (
-    <group ref={groupRef} position={[0, 0, 5]} rotation={[-Math.PI / 12, 0, 0]}>
+    <group ref={groupRef} position={[0, 8, 2]} rotation={[-Math.PI / 12, 0, 0]}>
+      {/* Background glow layer */}
       <Text
         font="https://fonts.gstatic.com/s/notosanssc/v39/k3kCo84MPvpLmixcA63oeAL7Iqp5IZJF9bmaG9_FnYw.ttf"
-        fontSize={2}
+        fontSize={1.8}
+        color="#FFD700"
+        anchorX="center"
+        anchorY="middle"
+        textAlign="center"
+        lineHeight={1.3}
+        position={[0, 0, -0.05]}
+        outlineWidth={0.08}
+        outlineColor="#FFD700"
+        outlineOpacity={0.5}
+      >
+        {text}
+      </Text>
+      {/* Main text layer */}
+      <Text
+        font="https://fonts.gstatic.com/s/notosanssc/v39/k3kCo84MPvpLmixcA63oeAL7Iqp5IZJF9bmaG9_FnYw.ttf"
+        fontSize={1.8}
         color="#FFFFFF"
         anchorX="center"
         anchorY="middle"
         textAlign="center"
         lineHeight={1.3}
+        outlineWidth={0.03}
+        outlineColor="#000000"
+        outlineOpacity={0.8}
       >
         {text}
       </Text>
@@ -539,6 +559,214 @@ const TopStar = ({ state, theme }: { state: 'CHAOS' | 'FORMED', theme: ThemeType
   );
 };
 
+// --- Component: Snowy Branch (雪树枝) ---
+const SnowyBranch = ({ state }: { state: 'CHAOS' | 'FORMED' }) => {
+  const groupRef = useRef<THREE.Group>(null);
+
+  // Branch geometry - main trunk and smaller branches
+  const branchData = useMemo(() => {
+    const branches = [];
+    // Main trunk
+    branches.push({
+      position: [0, 0, 0] as [number, number, number],
+      rotation: [0, 0, Math.PI / 8] as [number, number, number],
+      scale: [0.2, 4, 0.2] as [number, number, number],
+      type: 'trunk'
+    });
+    // Sub-branches
+    for (let i = 0; i < 5; i++) {
+      const y = -1.5 + i * 0.8;
+      const angle = (i % 2 === 0 ? 1 : -1) * (Math.PI / 4 + Math.random() * 0.2);
+      branches.push({
+        position: [Math.sin(angle) * 0.8, y, Math.cos(angle) * 0.3] as [number, number, number],
+        rotation: [0, 0, angle] as [number, number, number],
+        scale: [0.08, 1.2 + Math.random() * 0.5, 0.08] as [number, number, number],
+        type: 'branch'
+      });
+    }
+    return branches;
+  }, []);
+
+  // Snow clumps on branches
+  const snowData = useMemo(() => {
+    const snows = [];
+    for (let i = 0; i < 12; i++) {
+      snows.push({
+        position: [
+          (Math.random() - 0.5) * 2,
+          -1.5 + Math.random() * 3.5,
+          (Math.random() - 0.5) * 0.8
+        ] as [number, number, number],
+        scale: 0.15 + Math.random() * 0.2
+      });
+    }
+    return snows;
+  }, []);
+
+  useFrame((_, delta) => {
+    if (groupRef.current) {
+      const targetScale = state === 'FORMED' ? 1 : 0;
+      groupRef.current.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), delta * 2);
+      // Gentle swaying
+      groupRef.current.rotation.z = Math.sin(Date.now() * 0.001) * 0.02;
+    }
+  });
+
+  return (
+    <group ref={groupRef} position={[-18, -4, 5]}>
+      {/* Branches */}
+      {branchData.map((branch, i) => (
+        <mesh key={`branch-${i}`} position={branch.position} rotation={branch.rotation}>
+          <cylinderGeometry args={[branch.scale[0], branch.scale[0] * 1.2, branch.scale[1], 8]} />
+          <meshStandardMaterial color="#4A3728" roughness={0.9} />
+        </mesh>
+      ))}
+      {/* Snow clumps */}
+      {snowData.map((snow, i) => (
+        <mesh key={`snow-${i}`} position={snow.position}>
+          <sphereGeometry args={[snow.scale, 8, 8]} />
+          <meshStandardMaterial
+            color="#FFFFFF"
+            roughness={0.8}
+            emissive="#E0F4FF"
+            emissiveIntensity={0.1}
+          />
+        </mesh>
+      ))}
+      {/* Icicles */}
+      {[...Array(4)].map((_, i) => (
+        <mesh key={`icicle-${i}`} position={[(i - 1.5) * 0.6, -1.8, 0.2]} rotation={[0, 0, (Math.random() - 0.5) * 0.1]}>
+          <coneGeometry args={[0.05, 0.4 + Math.random() * 0.3, 6]} />
+          <meshStandardMaterial
+            color="#E0F8FF"
+            transparent
+            opacity={0.8}
+            roughness={0.1}
+            metalness={0.3}
+          />
+        </mesh>
+      ))}
+    </group>
+  );
+};
+
+// --- Component: Snowman (雪人) ---
+const Snowman = ({ state, position = [-10, -10, 6], scale = 1 }: { state: 'CHAOS' | 'FORMED', position?: [number, number, number], scale?: number }) => {
+  const groupRef = useRef<THREE.Group>(null);
+  const armRef1 = useRef<THREE.Mesh>(null);
+  const armRef2 = useRef<THREE.Mesh>(null);
+
+  useFrame((stateObj, delta) => {
+    if (groupRef.current) {
+      const targetScale = state === 'FORMED' ? scale : 0;
+      groupRef.current.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), delta * 2);
+    }
+    // Arm waving animation
+    if (armRef1.current && state === 'FORMED') {
+      armRef1.current.rotation.z = Math.PI / 4 + Math.sin(stateObj.clock.elapsedTime * 2) * 0.2;
+    }
+    if (armRef2.current && state === 'FORMED') {
+      armRef2.current.rotation.z = -Math.PI / 4 + Math.sin(stateObj.clock.elapsedTime * 2 + Math.PI) * 0.15;
+    }
+  });
+
+  return (
+    <group ref={groupRef} position={position}>
+      {/* Bottom sphere (body) */}
+      <mesh position={[0, 0, 0]}>
+        <sphereGeometry args={[2, 16, 16]} />
+        <meshStandardMaterial color="#FFFFFF" roughness={0.9} />
+      </mesh>
+
+      {/* Middle sphere (torso) */}
+      <mesh position={[0, 2.5, 0]}>
+        <sphereGeometry args={[1.5, 16, 16]} />
+        <meshStandardMaterial color="#FFFFFF" roughness={0.9} />
+      </mesh>
+
+      {/* Top sphere (head) */}
+      <mesh position={[0, 4.3, 0]}>
+        <sphereGeometry args={[1, 16, 16]} />
+        <meshStandardMaterial color="#FFFFFF" roughness={0.9} />
+      </mesh>
+
+      {/* Eyes */}
+      <mesh position={[-0.3, 4.5, 0.85]}>
+        <sphereGeometry args={[0.12, 8, 8]} />
+        <meshStandardMaterial color="#1a1a1a" />
+      </mesh>
+      <mesh position={[0.3, 4.5, 0.85]}>
+        <sphereGeometry args={[0.12, 8, 8]} />
+        <meshStandardMaterial color="#1a1a1a" />
+      </mesh>
+
+      {/* Carrot nose */}
+      <mesh position={[0, 4.2, 1]} rotation={[Math.PI / 2, 0, 0]}>
+        <coneGeometry args={[0.1, 0.6, 8]} />
+        <meshStandardMaterial color="#FF6B35" roughness={0.7} />
+      </mesh>
+
+      {/* Smile (coal pieces) */}
+      {[...Array(5)].map((_, i) => {
+        const angle = (i - 2) * 0.2;
+        return (
+          <mesh key={`smile-${i}`} position={[Math.sin(angle) * 0.5, 3.9 - Math.abs(i - 2) * 0.05, 0.9]}>
+            <sphereGeometry args={[0.06, 6, 6]} />
+            <meshStandardMaterial color="#1a1a1a" />
+          </mesh>
+        );
+      })}
+
+      {/* Top hat */}
+      <group position={[0, 5.3, 0]}>
+        {/* Hat brim */}
+        <mesh>
+          <cylinderGeometry args={[0.9, 0.9, 0.1, 16]} />
+          <meshStandardMaterial color="#1a1a1a" />
+        </mesh>
+        {/* Hat top */}
+        <mesh position={[0, 0.5, 0]}>
+          <cylinderGeometry args={[0.6, 0.6, 1, 16]} />
+          <meshStandardMaterial color="#1a1a1a" />
+        </mesh>
+        {/* Hat ribbon */}
+        <mesh position={[0, 0.15, 0]}>
+          <cylinderGeometry args={[0.62, 0.62, 0.15, 16]} />
+          <meshStandardMaterial color="#D32F2F" roughness={0.5} />
+        </mesh>
+      </group>
+
+      {/* Scarf */}
+      <mesh position={[0, 3.3, 0.3]} rotation={[0.1, 0, 0]}>
+        <torusGeometry args={[0.8, 0.15, 8, 16, Math.PI * 1.5]} />
+        <meshStandardMaterial color="#D32F2F" roughness={0.6} />
+      </mesh>
+      <mesh position={[0.6, 2.8, 0.5]} rotation={[0.3, 0, 0.5]}>
+        <boxGeometry args={[0.3, 1, 0.1]} />
+        <meshStandardMaterial color="#D32F2F" roughness={0.6} />
+      </mesh>
+
+      {/* Buttons */}
+      {[0, 0.6, 1.2].map((y, i) => (
+        <mesh key={`button-${i}`} position={[0, 1.8 + y, 1.4]}>
+          <sphereGeometry args={[0.12, 8, 8]} />
+          <meshStandardMaterial color="#1a1a1a" />
+        </mesh>
+      ))}
+
+      {/* Arms (sticks) */}
+      <mesh ref={armRef1} position={[1.5, 2.5, 0]} rotation={[0, 0, Math.PI / 4]}>
+        <cylinderGeometry args={[0.06, 0.08, 2.5, 6]} />
+        <meshStandardMaterial color="#4A3728" roughness={0.9} />
+      </mesh>
+      <mesh ref={armRef2} position={[-1.5, 2.5, 0]} rotation={[0, 0, -Math.PI / 4]}>
+        <cylinderGeometry args={[0.06, 0.08, 2.5, 6]} />
+        <meshStandardMaterial color="#4A3728" roughness={0.9} />
+      </mesh>
+    </group>
+  );
+};
+
 // --- Main Scene Experience ---
 const Experience = ({ sceneState, rotationSpeed, customText, photos, theme }: { sceneState: 'CHAOS' | 'FORMED', rotationSpeed: number, customText: string, photos: string[], theme: ThemeType }) => {
   const controlsRef = useRef<any>(null);
@@ -580,6 +808,10 @@ const Experience = ({ sceneState, rotationSpeed, customText, photos, theme }: { 
           <ChristmasElements state={sceneState} theme={theme} />
           <FairyLights state={sceneState} theme={theme} />
           <TopStar state={sceneState} theme={theme} />
+          {/* Left side decorations - snowmen */}
+          <Snowman state={sceneState} />
+          {/* Small snowman - 小雪人 */}
+          <Snowman state={sceneState} position={[-11, -11, 8]} scale={0.5} />
         </Suspense>
 
         <MiddleText state={sceneState} text={customText} theme={theme} />
@@ -796,16 +1028,17 @@ export default function GrandTreeApp() {
   const [themeMode] = useState<'modern' | 'classic'>('modern');
   const currentTheme = THEMES[themeMode];
   const [rotationSpeed, setRotationSpeed] = useState(0);
-  const [aiStatus, setAiStatus] = useState("INITIALIZING...");
-  const [debugMode, setDebugMode] = useState(false);
-  const [customText] = useState(`新濠影汇
+  const [_aiStatus, setAiStatus] = useState("INITIALIZING...");
+  const [debugMode, _setDebugMode] = useState(false);
+  const [customText] = useState(`新濠影匯
 STUDIO CITY`);
   const [focusedPhoto, setFocusedPhoto] = useState<{ index: number, position: THREE.Vector3 } | null>(null);
 
   const [photos, setPhotos] = useState<string[]>(bodyPhotoPaths);
-  const [isUploading, setIsUploading] = useState(false);
-  const [isGalleryOpen, setIsGalleryOpen] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  // Commented out: upload state - restore when upload UI is implemented
+  // const [isUploading, setIsUploading] = useState(false);
+  // const [isGalleryOpen, setIsGalleryOpen] = useState(false);
+  // const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Login State
 
@@ -829,83 +1062,61 @@ STUDIO CITY`);
     fetchPhotos();
   }, []);
 
-  const handleUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (!event.target.files || event.target.files.length === 0) return;
+  // Upload handler - currently unused, uncomment when upload UI is implemented
+  // const handleUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  //   if (!event.target.files || event.target.files.length === 0) return;
+  //   setIsUploading(true);
+  //   const file = event.target.files[0];
+  //   try {
+  //     const response = await fetch('/api/upload', {
+  //       method: 'POST',
+  //       headers: { 'content-type': file.type || 'application/octet-stream', 'x-filename': file.name },
+  //       body: file,
+  //     });
+  //     if (!response.ok) throw new Error('Upload failed');
+  //     const newBlob = await response.json();
+  //     setPhotos(prev => {
+  //       const isUsingLocal = prev.length > 0 && !prev[0].startsWith('http');
+  //       return isUsingLocal ? [newBlob.url] : [...prev, newBlob.url];
+  //     });
+  //     setAiStatus("UPLOAD SUCCESS");
+  //     setTimeout(() => setAiStatus("AI READY: SHOW HAND"), 3000);
+  //   } catch (error) {
+  //     console.error('Upload Error:', error);
+  //     setAiStatus("UPLOAD FAILED");
+  //   } finally {
+  //     setIsUploading(false);
+  //     if (fileInputRef.current) fileInputRef.current.value = '';
+  //   }
+  // };
 
-    setIsUploading(true);
-    const file = event.target.files[0];
-
-    try {
-      const response = await fetch('/api/upload', {
-        method: 'POST',
-        headers: {
-          'content-type': file.type || 'application/octet-stream',
-          'x-filename': file.name,
-        },
-        body: file,
-      });
-
-      if (!response.ok) throw new Error('Upload failed');
-
-      const newBlob = await response.json();
-
-      setPhotos(prev => {
-        // Check if we are currently using the default local set
-        // Heuristic: Local photos (from Vite) do not start with http/https
-        const isUsingLocal = prev.length > 0 && !prev[0].startsWith('http');
-
-        if (isUsingLocal) {
-          return [newBlob.url];
-        }
-        return [...prev, newBlob.url];
-      });
-
-      // Force switch to CHAOS to show new photo potentially, or just notify
-      setAiStatus("UPLOAD SUCCESS");
-      setTimeout(() => setAiStatus("AI READY: SHOW HAND"), 3000);
-    } catch (error) {
-      console.error('Upload Error:', error);
-      setAiStatus("UPLOAD FAILED");
-    } finally {
-      setIsUploading(false);
-      // Reset input
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    }
-  };
-
-  const handleDelete = async (url: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!confirm("Are you sure you want to delete this photo?")) return;
-
-    // Check if it's a local photo
-    if (url.startsWith('/src') || !url.startsWith('http')) {
-      alert("Cannot delete built-in photos.");
-      return;
-    }
-
-    try {
-      const res = await fetch('/api/photos', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url })
-      });
-      if (res.ok) {
-        setPhotos(prev => {
-          const updated = prev.filter(p => p !== url);
-          // If no uploaded photos remain, revert to local default
-          if (updated.length === 0) {
-            return bodyPhotoPaths;
-          }
-          return updated;
-        });
-      } else {
-        throw new Error('Delete failed');
-      }
-    } catch (error) {
-      console.error('Delete error', error);
-      alert("Failed to delete photo.");
-    }
-  };
+  // Delete handler - currently unused, uncomment when delete UI is implemented
+  // const handleDelete = async (url: string, e: React.MouseEvent) => {
+  //   e.stopPropagation();
+  //   if (!confirm("Are you sure you want to delete this photo?")) return;
+  //   if (url.startsWith('/src') || !url.startsWith('http')) {
+  //     alert("Cannot delete built-in photos.");
+  //     return;
+  //   }
+  //   try {
+  //     const res = await fetch('/api/photos', {
+  //       method: 'DELETE',
+  //       headers: { 'Content-Type': 'application/json' },
+  //       body: JSON.stringify({ url })
+  //     });
+  //     if (res.ok) {
+  //       setPhotos(prev => {
+  //         const updated = prev.filter(p => p !== url);
+  //         return updated.length === 0 ? bodyPhotoPaths : updated;
+  //       });
+  //     } else {
+  //       throw new Error('Delete failed');
+  //     }
+  //   } catch (error) {
+  //     console.error('Delete error', error);
+  //     alert("Failed to delete photo.");
+  //   }
+  //};
 
   // Handle pinch gesture - Hold to view random photo (CHAOS only)
   const handlePinch = useCallback((isPinching: boolean) => {
