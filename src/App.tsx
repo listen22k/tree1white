@@ -9,8 +9,7 @@ import {
   Float,
   Stars,
   Sparkles,
-  Text3D,
-  Center,
+  Text,
   useTexture
 } from '@react-three/drei';
 import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
@@ -464,18 +463,9 @@ const FairyLights = ({ state, theme }: { state: 'CHAOS' | 'FORMED', theme: Theme
 // --- Component: Middle Text (3D Customizable Text) ---
 const MiddleText = ({ state, text, theme }: { state: 'CHAOS' | 'FORMED', text: string, theme: ThemeType }) => {
   const groupRef = useRef<THREE.Group>(null);
-  const [opacity, setOpacity] = useState(0);
 
   useFrame((_, delta) => {
     if (groupRef.current) {
-      // Gentle rotation
-
-
-      // Fade in/out based on state
-      const targetOpacity = state === 'FORMED' ? 1 : 0;
-      setOpacity(prev => MathUtils.damp(prev, targetOpacity, 3, delta));
-
-      // Scale animation
       const targetScale = state === 'FORMED' ? 1 : 0.1;
       groupRef.current.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), delta * 2);
     }
@@ -484,30 +474,18 @@ const MiddleText = ({ state, text, theme }: { state: 'CHAOS' | 'FORMED', text: s
   if (!text || text.trim() === '') return null;
 
   return (
-    <group ref={groupRef} position={[0, 1, 0]}>
-      <Center>
-        <Text3D
-          font="/fonts/helvetiker_regular.typeface.json"
-          size={1.5}
-          height={0.3}
-          curveSegments={12}
-          bevelEnabled
-          bevelThickness={0.05}
-          bevelSize={0.02}
-          bevelSegments={5}
-        >
-          {text}
-          <meshStandardMaterial
-            color={theme.textColor}
-            emissive={theme.textColor}
-            emissiveIntensity={0.8}
-            roughness={0.2}
-            metalness={0.6}
-            transparent
-            opacity={opacity}
-          />
-        </Text3D>
-      </Center>
+    <group ref={groupRef} position={[0, 0, 5]} rotation={[-Math.PI / 12, 0, 0]}>
+      <Text
+        font="https://fonts.gstatic.com/s/notosanssc/v39/k3kCo84MPvpLmixcA63oeAL7Iqp5IZJF9bmaG9_FnYw.ttf"
+        fontSize={2}
+        color="#FFFFFF"
+        anchorX="center"
+        anchorY="middle"
+        textAlign="center"
+        lineHeight={1.3}
+      >
+        {text}
+      </Text>
     </group>
   );
 };
@@ -601,9 +579,11 @@ const Experience = ({ sceneState, rotationSpeed, customText, photos, theme }: { 
           <BaubleOrnaments state={sceneState} theme={theme} />
           <ChristmasElements state={sceneState} theme={theme} />
           <FairyLights state={sceneState} theme={theme} />
-          <MiddleText state={sceneState} text={customText} theme={theme} />
           <TopStar state={sceneState} theme={theme} />
         </Suspense>
+
+        <MiddleText state={sceneState} text={customText} theme={theme} />
+
         <Sparkles count={600} scale={50} size={8} speed={0.4} opacity={0.4} color={CONFIG.colors.silver} />
       </group>
 
@@ -617,7 +597,7 @@ const Experience = ({ sceneState, rotationSpeed, customText, photos, theme }: { 
 
 // --- Gesture Controller ---
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const GestureController = React.memo(({ onGesture, onMove, onStatus, onPinch, onThemeChange, debugMode }: any) => {
+const GestureController = React.memo(({ onGesture, onMove, onStatus, onPinch, debugMode }: any) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -627,9 +607,8 @@ const GestureController = React.memo(({ onGesture, onMove, onStatus, onPinch, on
     onMove: any,
     onStatus: any,
     onPinch: any,
-    onThemeChange: any,
     lastMoveTime?: number
-  }>({ onGesture, onMove, onStatus, onPinch, onThemeChange });
+  }>({ onGesture, onMove, onStatus, onPinch });
 
   // Use ref to track pinch state across renders
   const isPinchingRef = useRef(false);
@@ -637,9 +616,9 @@ const GestureController = React.memo(({ onGesture, onMove, onStatus, onPinch, on
   useEffect(() => {
     callbacksRef.current = {
       ...callbacksRef.current,
-      onGesture, onMove, onStatus, onPinch, onThemeChange
+      onGesture, onMove, onStatus, onPinch
     };
-  }, [onGesture, onMove, onStatus, onPinch, onThemeChange]);
+  }, [onGesture, onMove, onStatus, onPinch]);
 
   useEffect(() => {
     let gestureRecognizer: GestureRecognizer;
@@ -722,8 +701,7 @@ const GestureController = React.memo(({ onGesture, onMove, onStatus, onPinch, on
             const name = results.gestures[0][0].categoryName; const score = results.gestures[0][0].score;
             if (score > 0.4) {
               if (name === "Open_Palm") onGesture("CHAOS"); if (name === "Closed_Fist") onGesture("FORMED");
-              if (name === "Pointing_Up") callbacksRef.current.onThemeChange("classic");
-              if (name === "Victory") callbacksRef.current.onThemeChange("modern");
+              // Theme switching removed
               if (debugMode) onStatus(`DETECTED: ${name}`);
             }
             if (results.landmarks.length > 0) {
@@ -815,12 +793,13 @@ const GestureController = React.memo(({ onGesture, onMove, onStatus, onPinch, on
 // --- App Entry ---
 export default function GrandTreeApp() {
   const [sceneState, setSceneState] = useState<'CHAOS' | 'FORMED'>('FORMED');
-  const [themeMode, setThemeMode] = useState<'modern' | 'classic'>('modern');
+  const [themeMode] = useState<'modern' | 'classic'>('modern');
   const currentTheme = THEMES[themeMode];
   const [rotationSpeed, setRotationSpeed] = useState(0);
   const [aiStatus, setAiStatus] = useState("INITIALIZING...");
   const [debugMode, setDebugMode] = useState(false);
-  const [customText, setCustomText] = useState('STUDIO CITY');
+  const [customText] = useState(`新濠影汇
+STUDIO CITY`);
   const [focusedPhoto, setFocusedPhoto] = useState<{ index: number, position: THREE.Vector3 } | null>(null);
 
   const [photos, setPhotos] = useState<string[]>(bodyPhotoPaths);
@@ -969,10 +948,10 @@ export default function GrandTreeApp() {
           <Experience sceneState={sceneState} rotationSpeed={rotationSpeed} customText={customText} photos={photos} theme={currentTheme} />
         </Canvas>
       </div>
-      <GestureController onGesture={setSceneState} onMove={setRotationSpeed} onStatus={setAiStatus} onPinch={handlePinch} onThemeChange={setThemeMode} debugMode={debugMode} />
+      <GestureController onGesture={setSceneState} onMove={setRotationSpeed} onStatus={setAiStatus} onPinch={handlePinch} debugMode={debugMode} />
 
       {/* UI - Stats */}
-      <div className="stats-panel">
+      {/* <div className="stats-panel">
         <div className="stat-item">
           <p>Photos</p>
           <p style={{ color: currentTheme.foliageBase }}>
@@ -985,10 +964,10 @@ export default function GrandTreeApp() {
             {(CONFIG.counts.foliage / 1000).toFixed(0)}K <span style={{ fontSize: '10px', color: '#555', fontWeight: 'normal' }}>NEEDLES</span>
           </p>
         </div>
-      </div>
+      </div> */}
 
       {/* UI - Buttons */}
-      <div className="controls-panel">
+      {/* <div className="controls-panel">
         <button onClick={() => setDebugMode(!debugMode)} className={`btn btn-debug ${debugMode ? 'active' : ''}`}>
           {debugMode ? 'HIDE DEBUG' : '🛠 DEBUG'}
         </button>
@@ -1008,27 +987,14 @@ export default function GrandTreeApp() {
         <button onClick={() => setIsGalleryOpen(true)} className="btn btn-gallery">
           🖼 GALLERY
         </button>
-      </div>
+      </div> */}
 
       {/* UI - AI Status */}
-      <div className="ai-status-panel">
+      {/* <div className="ai-status-panel">
         <div className={`ai-status-badge ${aiStatus.includes('ERROR') ? 'error' : ''}`}>
           {aiStatus}
         </div>
-      </div>
-
-      {/* UI - Text Input */}
-      <div className="input-panel">
-        <label className="custom-input-label">Custom Text</label>
-        <input
-          className="custom-input"
-          type="text"
-          value={customText}
-          onChange={(e) => setCustomText(e.target.value.toUpperCase())}
-          maxLength={20}
-          placeholder="ENTER TEXT"
-        />
-      </div>
+      </div> */}
 
       {/* Photo Focus Overlay (Pinch to Peek) */}
       {focusedPhoto && (
@@ -1070,7 +1036,7 @@ export default function GrandTreeApp() {
       )}
 
       {/* Gallery Modal */}
-      {isGalleryOpen && (
+      {/* {isGalleryOpen && (
         <div className="gallery-modal-overlay">
           <div style={{ width: '100%', maxWidth: '1000px', display: 'flex', justifyContent: 'space-between', marginBottom: '30px', alignItems: 'center' }}>
             <h2 style={{ color: currentTheme.foliageBase, fontFamily: 'serif', margin: 0 }}>Photo Gallery</h2>
@@ -1109,7 +1075,7 @@ export default function GrandTreeApp() {
             ))}
           </div>
         </div>
-      )}
+      )} */}
     </div>
   );
 }
