@@ -12,6 +12,7 @@ import {
   Text,
   useTexture
 } from '@react-three/drei';
+import { SpeedInsights } from "@vercel/speed-insights/react"; // Adjusted for Vite
 import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
 import * as THREE from 'three';
 import { MathUtils } from 'three';
@@ -1107,6 +1108,7 @@ STUDIO CITY`);
 
   return (
     <div className="ui-container">
+      <SpeedInsights />
       <div className="canvas-container">
         <Canvas dpr={[1, 2]} gl={{ toneMapping: THREE.ReinhardToneMapping }} shadows>
           <Experience sceneState={sceneState} rotationSpeed={rotationSpeed} customText={customText} photos={photos} theme={currentTheme} />
