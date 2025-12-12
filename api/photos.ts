@@ -43,7 +43,7 @@ export default async function handler(request: IncomingMessage, response: Server
         }
 
         // GET
-        const { blobs } = await list();
+        const { blobs } = await list({ prefix: 'tree1/' });
         return json(blobs.map(blob => blob.url));
 
     } catch (error) {

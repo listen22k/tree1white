@@ -1,14 +1,255 @@
-/* src/index.css */
-body, html {
-  margin: 0;
-  padding: 0;
-  width: 100%;
-  height: 100%;
-  background-color: #000000;
-  overflow: hidden; /* 彻底禁止滚动 */
-}
+/* src/index.css is where base reset is, but we add our app styles here */
 
-#root {
+/* UI Container - full screen overlay */
+.ui-container {
   width: 100vw;
   height: 100vh;
+  background-color: #000;
+  position: relative;
+  overflow: hidden;
+}
+
+.canvas-container {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+}
+
+/* Base Styles for Panels */
+.stats-panel, .controls-panel, .ai-status-panel, .input-panel {
+  position: absolute;
+  z-index: 10;
+  pointer-events: none; /* Let clicks pass through transparent areas */
+}
+
+/* Allow interaction with inner contents */
+.stats-panel > *, .controls-panel > *, .ai-status-panel > *, .input-panel > * {
+  pointer-events: auto;
+}
+
+/* Stats Panel (Bottom Left) */
+.stats-panel {
+  bottom: 30px;
+  left: 40px;
+  color: #888;
+  font-family: sans-serif;
+  user-select: none;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.stat-item p:first-child {
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.stat-item p:last-child {
+  font-size: 24px;
+  font-weight: bold;
+  margin: 0;
+}
+
+/* Controls Panel (Bottom Right) */
+.controls-panel {
+  bottom: 30px;
+  right: 40px;
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+}
+
+/* AI Status (Top Center) */
+.ai-status-panel {
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: sans-serif;
+}
+
+.ai-status-badge {
+    color: rgba(255, 215, 0, 0.4);
+    font-size: 10px;
+    letter-spacing: 2px;
+    background: rgba(0,0,0,0.5);
+    padding: 4px 8px;
+    border-radius: 4px;
+    text-transform: uppercase;
+}
+
+.ai-status-badge.error {
+    color: #FF0000;
+}
+
+/* Input Panel (Top Left) */
+.input-panel {
+  top: 30px;
+  left: 40px;
+}
+
+.custom-input-label {
+    display: block; 
+    color: #B8E6D5; 
+    font-size: 10px; 
+    letter-spacing: 2px; 
+    text-transform: uppercase; 
+    margin-bottom: 8px; 
+    font-family: sans-serif;
+}
+
+.custom-input {
+    padding: 10px 15px;
+    background-color: rgba(0,0,0,0.6);
+    border: 1px solid rgba(184, 230, 213, 0.5);
+    color: #B8E6D5;
+    font-family: sans-serif;
+    font-size: 14px;
+    font-weight: bold;
+    letter-spacing: 2px;
+    cursor: text;
+    backdrop-filter: blur(4px);
+    border-radius: 4px;
+    outline: none;
+    width: 200px;
+}
+
+/* Buttons */
+.btn {
+  padding: 12px 15px;
+  background-color: rgba(0,0,0,0.5);
+  font-family: sans-serif;
+  font-size: 12px;
+  font-weight: bold;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+}
+
+.btn-debug {
+    background-color: rgba(0,0,0,0.5);
+    border: 1px solid #FFD700;
+    color: #FFD700;
+}
+.btn-debug.active {
+    background-color: #FFD700;
+    color: #000;
+}
+
+.btn-upload {
+    border: 1px solid #B8E6D5;
+    color: #B8E6D5;
+}
+
+.btn-action {
+    padding: 12px 30px;
+    border: 1px solid rgba(255, 215, 0, 0.5);
+    color: #FFD700;
+    font-family: serif;
+    font-size: 14px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+}
+
+.btn-gallery {
+    border: 1px solid #B8E6D5;
+    color: #B8E6D5;
+}
+
+
+/* Gallery Modal */
+.gallery-modal-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0,0,0,0.9);
+    z-index: 2000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px;
+}
+
+.gallery-container {
+    width: 100%;
+    max-width: 1000px;
+    flex: 1;
+    overflow-y: auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 20px;
+    align-content: start;
+}
+
+/* --- Mobile / Responsive Tweaks --- */
+@media (max-width: 768px) {
+  /* Move Input to Top Center (below status) */
+  .input-panel {
+    top: 55px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: auto;
+    text-align: center;
+  }
+  
+  .custom-input {
+    width: 160px;
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+
+  /* Move Stats to Top Left (compact) */
+  .stats-panel {
+    top: 15px;
+    bottom: auto;
+    left: 15px;
+    gap: 5px;
+    transform: scale(0.85);
+    transform-origin: top left;
+  }
+  
+  /* Stack Controls at Bottom Center */
+  .controls-panel {
+    right: 0;
+    left: 0;
+    bottom: 20px;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 0 10px;
+  }
+  
+  .btn {
+    padding: 10px 12px;
+    font-size: 11px;
+    flex: 0 0 auto;
+  }
+  
+  .btn-action {
+      padding: 10px 20px;
+      width: 100%; /* Make main button full width? OR just prominent */
+      text-align: center;
+      order: -1; /* Put action button first or last? Let's keep visually ordered */
+      order: 10; /* Put it at the bottom of the stack if wrapping */
+      flex: 0 0 100%; 
+  }
+
+  /* Hide debug on mobile usually, or just icon */
+  .btn-debug {
+      display: none; 
+  }
+  
+  .gallery-modal-overlay {
+      padding: 20px;
+  }
+  
+  .gallery-container {
+      grid-template-columns: repeat(2, 1fr); /* 2 cols on mobile */
+      gap: 10px;
+  }
 }

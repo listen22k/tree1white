@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect, Suspense, useCallback } from 'react';
-import { Canvas, useFrame, extend } from '@react-three/fiber';
+import './App.css';
+import { Canvas, useFrame, extend, useThree } from '@react-three/fiber';
 import {
   OrbitControls,
   Environment,
@@ -520,6 +521,15 @@ const TopStar = ({ state }: { state: 'CHAOS' | 'FORMED' }) => {
 // --- Main Scene Experience ---
 const Experience = ({ sceneState, rotationSpeed, customText, photos }: { sceneState: 'CHAOS' | 'FORMED', rotationSpeed: number, customText: string, photos: string[] }) => {
   const controlsRef = useRef<any>(null);
+  const { viewport } = useThree();
+
+  // Responsive Camera Position
+  // Default FOV 45. Tree Height ~25. Width ~18.
+  // In portrait (width < height), horizontal FOV shrinks. 
+  // We need to push back to ensure tree fits horizontally.
+  const isPortrait = viewport.width < viewport.height;
+  const cameraZ = isPortrait ? 100 : 60; // Push back significantly on portrait
+
   useFrame(() => {
     if (controlsRef.current) {
       controlsRef.current.setAzimuthalAngle(controlsRef.current.getAzimuthalAngle() + rotationSpeed);
@@ -529,8 +539,8 @@ const Experience = ({ sceneState, rotationSpeed, customText, photos }: { sceneSt
 
   return (
     <>
-      <PerspectiveCamera makeDefault position={[0, 8, 60]} fov={45} />
-      <OrbitControls ref={controlsRef} enablePan={false} enableZoom={true} minDistance={30} maxDistance={120} autoRotate={rotationSpeed === 0 && sceneState === 'FORMED'} autoRotateSpeed={0.3} maxPolarAngle={Math.PI / 1.7} />
+      <PerspectiveCamera makeDefault position={[0, 8, cameraZ]} fov={45} />
+      <OrbitControls ref={controlsRef} enablePan={false} enableZoom={true} minDistance={30} maxDistance={150} autoRotate={rotationSpeed === 0 && sceneState === 'FORMED'} autoRotateSpeed={0.3} maxPolarAngle={Math.PI / 1.7} />
 
       <color attach="background" args={['#000300']} />
       <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
@@ -679,23 +689,22 @@ const GestureController = React.memo(({ onGesture, onMove, onStatus, onPinch, de
               const rawOffset = 0.5 - handX;
 
               let targetSpeed = 0;
-              const deadzone = 0.1; // 20% deadzone in middle
-              const sensitivity = 0.25;
+              const deadzone = 0.05; // Reduced deadzone for responsiveness
+              const sensitivity = 1.5; // Increased sensitivity
 
               if (Math.abs(rawOffset) > deadzone) {
-                // Remap 0.1 -> 0.5 to 0 -> 0.4(ish)
+                // Remap 0.05 -> 0.5 
                 const effectiveOffset = rawOffset > 0 ? rawOffset - deadzone : rawOffset + deadzone;
-                targetSpeed = -effectiveOffset * sensitivity; // Inverted direction
+                // Inverted direction as requested
+                targetSpeed = -effectiveOffset * sensitivity;
                 if (debugMode) onStatus(`ROTATING: ${targetSpeed > 0 ? 'LEFT' : 'RIGHT'}`);
               } else {
                 if (debugMode) onStatus("CENTER: PAUSED");
               }
 
-              // Throttle movement updates to max 10fps to save CPU/GPU
-              if (!callbacksRef.current.lastMoveTime || now - callbacksRef.current.lastMoveTime > 100) {
-                onMove(targetSpeed);
-                callbacksRef.current.lastMoveTime = now;
-              }
+              // Removed throttling for instant feedback
+              onMove(targetSpeed);
+              callbacksRef.current.lastMoveTime = now;
 
               const thumbTip = landmarks[4];
               const indexTip = landmarks[8];
@@ -906,8 +915,8 @@ export default function GrandTreeApp() {
 
 
   return (
-    <div style={{ width: '100vw', height: '100vh', backgroundColor: '#000', position: 'relative', overflow: 'hidden' }}>
-      <div style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0, zIndex: 1 }}>
+    <div className="ui-container">
+      <div className="canvas-container">
         <Canvas dpr={[1, 2]} gl={{ toneMapping: THREE.ReinhardToneMapping }} shadows>
           <Experience sceneState={sceneState} rotationSpeed={rotationSpeed} customText={customText} photos={photos} />
         </Canvas>
@@ -915,24 +924,24 @@ export default function GrandTreeApp() {
       <GestureController onGesture={setSceneState} onMove={setRotationSpeed} onStatus={setAiStatus} onPinch={handlePinch} debugMode={debugMode} />
 
       {/* UI - Stats */}
-      <div style={{ position: 'absolute', bottom: '30px', left: '40px', color: '#888', zIndex: 10, fontFamily: 'sans-serif', userSelect: 'none' }}>
-        <div style={{ marginBottom: '15px' }}>
-          <p style={{ fontSize: '10px', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '4px' }}>Photos</p>
-          <p style={{ fontSize: '24px', color: '#B8E6D5', fontWeight: 'bold', margin: 0 }}>
+      <div className="stats-panel">
+        <div className="stat-item">
+          <p>Photos</p>
+          <p style={{ color: '#B8E6D5' }}>
             {photos.length.toLocaleString()} <span style={{ fontSize: '10px', color: '#555', fontWeight: 'normal' }}>POLAROIDS</span>
           </p>
         </div>
-        <div>
-          <p style={{ fontSize: '10px', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '4px' }}>Foliage</p>
-          <p style={{ fontSize: '24px', color: '#A8D5C5', fontWeight: 'bold', margin: 0 }}>
+        <div className="stat-item">
+          <p>Foliage</p>
+          <p style={{ color: '#A8D5C5' }}>
             {(CONFIG.counts.foliage / 1000).toFixed(0)}K <span style={{ fontSize: '10px', color: '#555', fontWeight: 'normal' }}>MINT NEEDLES</span>
           </p>
         </div>
       </div>
 
       {/* UI - Buttons */}
-      <div style={{ position: 'absolute', bottom: '30px', right: '40px', zIndex: 10, display: 'flex', gap: '10px' }}>
-        <button onClick={() => setDebugMode(!debugMode)} style={{ padding: '12px 15px', backgroundColor: debugMode ? '#FFD700' : 'rgba(0,0,0,0.5)', border: '1px solid #FFD700', color: debugMode ? '#000' : '#FFD700', fontFamily: 'sans-serif', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', backdropFilter: 'blur(4px)' }}>
+      <div className="controls-panel">
+        <button onClick={() => setDebugMode(!debugMode)} className={`btn btn-debug ${debugMode ? 'active' : ''}`}>
           {debugMode ? 'HIDE DEBUG' : '🛠 DEBUG'}
         </button>
         <input
@@ -942,46 +951,34 @@ export default function GrandTreeApp() {
           onChange={handleUpload}
           accept="image/*"
         />
-        <button onClick={() => fileInputRef.current?.click()} style={{ padding: '12px 15px', backgroundColor: 'rgba(0,0,0,0.5)', border: '1px solid #B8E6D5', color: '#B8E6D5', fontFamily: 'sans-serif', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', backdropFilter: 'blur(4px)' }}>
+        <button onClick={() => fileInputRef.current?.click()} className="btn btn-upload">
           {isUploading ? 'UPLOADING...' : '📷 UPLOAD'}
         </button>
-        <button onClick={() => setSceneState(s => s === 'CHAOS' ? 'FORMED' : 'CHAOS')} style={{ padding: '12px 30px', backgroundColor: 'rgba(0,0,0,0.5)', border: '1px solid rgba(255, 215, 0, 0.5)', color: '#FFD700', fontFamily: 'serif', fontSize: '14px', fontWeight: 'bold', letterSpacing: '3px', textTransform: 'uppercase', cursor: 'pointer', backdropFilter: 'blur(4px)' }}>
+        <button onClick={() => setSceneState(s => s === 'CHAOS' ? 'FORMED' : 'CHAOS')} className="btn btn-action">
           {sceneState === 'CHAOS' ? 'Assemble Tree' : 'Disperse'}
         </button>
-        <button onClick={() => setIsGalleryOpen(true)} style={{ padding: '12px 15px', backgroundColor: 'rgba(0,0,0,0.5)', border: '1px solid #B8E6D5', color: '#B8E6D5', fontFamily: 'sans-serif', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', backdropFilter: 'blur(4px)' }}>
+        <button onClick={() => setIsGalleryOpen(true)} className="btn btn-gallery">
           🖼 GALLERY
         </button>
       </div>
 
       {/* UI - AI Status */}
-      <div style={{ position: 'absolute', top: '20px', left: '50%', transform: 'translateX(-50%)', color: aiStatus.includes('ERROR') ? '#FF0000' : 'rgba(255, 215, 0, 0.4)', fontSize: '10px', letterSpacing: '2px', zIndex: 10, background: 'rgba(0,0,0,0.5)', padding: '4px 8px', borderRadius: '4px' }}>
-        {aiStatus}
+      <div className="ai-status-panel">
+        <div className={`ai-status-badge ${aiStatus.includes('ERROR') ? 'error' : ''}`}>
+          {aiStatus}
+        </div>
       </div>
 
       {/* UI - Text Input */}
-      <div style={{ position: 'absolute', top: '30px', left: '40px', zIndex: 10 }}>
-        <label style={{ display: 'block', color: '#B8E6D5', fontSize: '10px', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '8px', fontFamily: 'sans-serif' }}>Custom Text</label>
+      <div className="input-panel">
+        <label className="custom-input-label">Custom Text</label>
         <input
+          className="custom-input"
           type="text"
           value={customText}
           onChange={(e) => setCustomText(e.target.value.toUpperCase())}
           maxLength={20}
           placeholder="ENTER TEXT"
-          style={{
-            padding: '10px 15px',
-            backgroundColor: 'rgba(0,0,0,0.6)',
-            border: '1px solid rgba(184, 230, 213, 0.5)',
-            color: '#B8E6D5',
-            fontFamily: 'sans-serif',
-            fontSize: '14px',
-            fontWeight: 'bold',
-            letterSpacing: '2px',
-            cursor: 'text',
-            backdropFilter: 'blur(4px)',
-            borderRadius: '4px',
-            outline: 'none',
-            width: '200px'
-          }}
         />
       </div>
 
@@ -1026,12 +1023,8 @@ export default function GrandTreeApp() {
 
       {/* Gallery Modal */}
       {isGalleryOpen && (
-        <div style={{
-          position: 'absolute', top: 0, left: 0, width: '100vw', height: '100vh',
-          backgroundColor: 'rgba(0,0,0,0.9)', zIndex: 2000,
-          display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '40px'
-        }}>
-          <div style={{ width: '100%', maxWidth: '1000px', display: 'flex', justifyContent: 'space-between', marginBottom: '30px' }}>
+        <div className="gallery-modal-overlay">
+          <div style={{ width: '100%', maxWidth: '1000px', display: 'flex', justifyContent: 'space-between', marginBottom: '30px', alignItems: 'center' }}>
             <h2 style={{ color: '#B8E6D5', fontFamily: 'serif', margin: 0 }}>Photo Gallery</h2>
             <div style={{ display: 'flex', gap: '10px' }}>
               <button
@@ -1047,11 +1040,7 @@ export default function GrandTreeApp() {
             </div>
           </div>
 
-          <div style={{
-            width: '100%', maxWidth: '1000px', flex: 1, overflowY: 'auto',
-            display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '20px',
-            alignContent: 'start'
-          }}>
+          <div className="gallery-container">
             {photos.map((url, i) => (
               <div key={i} style={{ position: 'relative', aspectRatio: '1', border: '1px solid #333' }}>
                 <img src={url} alt="Gallery" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />

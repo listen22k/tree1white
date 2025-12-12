@@ -16,7 +16,7 @@ export default async function upload(request: IncomingMessage, response: ServerR
 
     try {
         // request is a Readable stream, so we can pass it directly to put
-        const blob = await put(filename, request, {
+        const blob = await put(`tree1/${filename}`, request, {
             access: 'public',
             addRandomSuffix: true // Ensure uniqueness
         });
