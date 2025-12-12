@@ -820,7 +820,7 @@ export default function GrandTreeApp() {
   const [rotationSpeed, setRotationSpeed] = useState(0);
   const [aiStatus, setAiStatus] = useState("INITIALIZING...");
   const [debugMode, setDebugMode] = useState(false);
-  const [customText, setCustomText] = useState('STUDIO CITY');
+  const [customText, setCustomText] = useState('Christmas Tree');
   const [focusedPhoto, setFocusedPhoto] = useState<{ index: number, position: THREE.Vector3 } | null>(null);
 
   const [photos, setPhotos] = useState<string[]>(bodyPhotoPaths);
