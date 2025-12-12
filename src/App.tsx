@@ -726,6 +726,23 @@ const Experience = ({ sceneState, rotationSpeed, customText, photos, theme }: { 
         <MiddleText state={sceneState} text={customText} theme={theme} />
 
         <Sparkles count={600} scale={50} size={8} speed={0.4} opacity={0.4} color={CONFIG.colors.silver} />
+
+        {/* Footer text - lily2025 */}
+        <Suspense fallback={null}>
+          <Text
+            font="https://fonts.gstatic.com/s/notosanssc/v39/k3kCo84MPvpLmixcA63oeAL7Iqp5IZJF9bmaG9_FnYw.ttf"
+            fontSize={1.5}
+            color="#FFFFFF"
+            anchorX="center"
+            anchorY="middle"
+            position={[0, -12, 15]}
+            outlineWidth={0.04}
+            outlineColor="#333333"
+            outlineOpacity={0.8}
+          >
+            lily2025
+          </Text>
+        </Suspense>
       </group>
 
       <EffectComposer>
