@@ -20,8 +20,7 @@ import { GestureRecognizer, FilesetResolver, DrawingUtils } from "@mediapipe/tas
 
 
 // --- 动态获取照片列表 (自动读取 src/assets/photos 下的所有 .jpg 文件) ---
-// 使用 Vite 的 import.meta.glob 动态导入
-// 使用 Vite 的 import.meta.glob 动态导入
+// 使用 Vite 的 import.meta.glob 懒加载导入
 const photoModules = import.meta.glob('/src/assets/photos/*.jpg', { eager: true, query: '?url', import: 'default' });
 const bodyPhotoPaths: string[] = Object.values(photoModules) as string[];
 
@@ -29,6 +28,18 @@ const bodyPhotoPaths: string[] = Object.values(photoModules) as string[];
 if (bodyPhotoPaths.length === 0) {
   console.warn("No photos found in src/assets/photos!");
 }
+
+// 预加载图片的工具函数
+const preloadImages = (paths: string[]): Promise<void[]> => {
+  return Promise.all(
+    paths.map(path => new Promise<void>((resolve) => {
+      const img = new Image();
+      img.onload = () => resolve();
+      img.onerror = () => resolve(); // 即使失败也继续
+      img.src = path;
+    }))
+  );
+};
 
 // --- 视觉配置 ---
 const CONFIG = {
@@ -961,7 +972,22 @@ export default function GrandTreeApp() {
 STUDIO CITY`);
   const [focusedPhoto, setFocusedPhoto] = useState<{ index: number, position: THREE.Vector3 } | null>(null);
 
-  const photos = bodyPhotoPaths; // Using static photos list
+  // 懒加载照片：先渲染树，延迟加载照片
+  const [photosReady, setPhotosReady] = useState(false);
+  const photos = photosReady ? bodyPhotoPaths : [];
+
+  // 延迟加载照片，让树先渲染出来
+  useEffect(() => {
+    // 延迟500ms后开始预加载照片
+    const timer = setTimeout(() => {
+      preloadImages(bodyPhotoPaths).then(() => {
+        setPhotosReady(true);
+        console.log(`Photos loaded: ${bodyPhotoPaths.length} images ready`);
+      });
+    }, 500);
+    return () => clearTimeout(timer);
+  }, []);
+
   // Commented out: upload state - restore when upload UI is implemented
   // const [isUploading, setIsUploading] = useState(false);
   // const [isGalleryOpen, setIsGalleryOpen] = useState(false);
