@@ -43,7 +43,7 @@ export default async function handler(request: IncomingMessage, response: Server
         }
 
         // GET
-        const { blobs } = await list({ prefix: 'tree1/' });
+        const { blobs } = await list({ prefix: 'tree2/' });
         // Filter out the directory itself and ensure only images are returned
         const imageBlobs = blobs.filter(blob =>
             !blob.url.endsWith('/') &&
