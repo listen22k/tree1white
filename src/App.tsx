@@ -9,7 +9,6 @@ import {
   Float,
   Stars,
   Sparkles,
-  Text,
   useTexture
 } from '@react-three/drei';
 import { SpeedInsights } from "@vercel/speed-insights/react"; // Adjusted for Vite
@@ -472,6 +471,75 @@ const FairyLights = ({ state, theme }: { state: 'CHAOS' | 'FORMED', theme: Theme
   );
 };
 
+// --- Component: TextureText (Canvas Texture based 3D Text) ---
+// Renders text to a 2D canvas and uses it as a texture on a plane for instant "loading"
+const TextureText = ({ text, fontSize = 60, color = 'white', outlineColor = 'black', outlineWidth = 0, opacity = 1, position = [0, 0, 0], scale = 1 }: any) => {
+  const texture = useMemo(() => {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+
+    // Handle multiline
+    const lines = text.split('\n');
+    const lineHeight = fontSize * 1.2;
+    const width = 1024; // Fixed high res width
+    const height = lines.length * lineHeight + fontSize; // Basic height estimate
+
+    canvas.width = width;
+    canvas.height = height;
+
+    // Clear
+    ctx.clearRect(0, 0, width, height);
+
+    // Font settings
+    ctx.font = `bold ${fontSize}px "Microsoft YaHei", "SimHei", sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    // Draw Text
+    const cx = width / 2;
+    let cy = height / 2 - ((lines.length - 1) * lineHeight) / 2;
+
+    lines.forEach((line: string) => {
+      if (outlineWidth > 0) {
+        ctx.strokeStyle = outlineColor;
+        ctx.lineWidth = outlineWidth;
+        ctx.strokeText(line, cx, cy);
+      }
+      ctx.fillStyle = color;
+      ctx.fillText(line, cx, cy);
+      cy += lineHeight;
+    });
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.minFilter = THREE.LinearFilter;
+    tex.magFilter = THREE.LinearFilter;
+    tex.needsUpdate = true;
+    return tex;
+  }, [text, fontSize, color, outlineColor, outlineWidth]);
+
+  // Calculate aspect ratio for the plane
+  const aspect = texture && texture.image ? texture.image.width / texture.image.height : 1;
+  const planeWidth = 5 * scale; // Base width unit
+  const planeHeight = (planeWidth / aspect);
+
+  return (
+    <mesh position={position} scale={[1, 1, 1]}>
+      <planeGeometry args={[planeWidth, planeHeight]} />
+      <meshStandardMaterial
+        map={texture}
+        transparent={true}
+        opacity={opacity}
+        side={THREE.DoubleSide}
+        alphaTest={0.1}
+        emissive={color}
+        emissiveIntensity={0.5}
+        toneMapped={false} // Keep colors bright
+      />
+    </mesh>
+  );
+};
+
 // --- Component: Middle Text (3D Customizable Text) ---
 const MiddleText = ({ state, text, theme: _theme }: { state: 'CHAOS' | 'FORMED', text: string, theme: ThemeType }) => {
   const groupRef = useRef<THREE.Group>(null);
@@ -487,37 +555,16 @@ const MiddleText = ({ state, text, theme: _theme }: { state: 'CHAOS' | 'FORMED',
 
   return (
     <group ref={groupRef} position={[0, 8, 2]} rotation={[-Math.PI / 12, 0, 0]}>
-      {/* Background glow layer */}
-      <Text
-        font="/fonts/NotoSansCJKsc-Regular.otf"
-        fontSize={1.8}
-        color="#FFD700"
-        anchorX="center"
-        anchorY="middle"
-        textAlign="center"
-        lineHeight={1.3}
-        position={[0, 0, -0.05]}
-        outlineWidth={0.08}
-        outlineColor="#FFD700"
-        outlineOpacity={0.5}
-      >
-        {text}
-      </Text>
-      {/* Main text layer */}
-      <Text
-        font="/fonts/NotoSansCJKsc-Regular.otf"
-        fontSize={1.8}
+      {/* Background glow layer handled by outline in TextureText for simplicity or distinct layer */}
+      {/* For best bloom effect, we use one bright layer */}
+      <TextureText
+        text={text}
+        fontSize={120}
         color="#FFFFFF"
-        anchorX="center"
-        anchorY="middle"
-        textAlign="center"
-        lineHeight={1.3}
-        outlineWidth={0.03}
         outlineColor="#000000"
-        outlineOpacity={0.8}
-      >
-        {text}
-      </Text>
+        outlineWidth={4}
+        scale={2.5}
+      />
     </group>
   );
 };
@@ -742,19 +789,15 @@ const Experience = ({ sceneState, rotationSpeed, customText, photos, theme }: { 
 
         {/* Footer text - lily2025 */}
         <Suspense fallback={null}>
-          <Text
-            font="/fonts/NotoSansCJKsc-Regular.otf"
-            fontSize={1.5}
+          <TextureText
+            text="lily2025"
+            fontSize={180}
             color="#FFFFFF"
-            anchorX="center"
-            anchorY="middle"
-            position={[0, -12, 15]}
-            outlineWidth={0.04}
             outlineColor="#333333"
-            outlineOpacity={0.8}
-          >
-            lily2025
-          </Text>
+            outlineWidth={2}
+            position={[0, -10, 12]}
+            scale={1.0}
+          />
         </Suspense>
       </group>
 
